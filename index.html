@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家計簿</title>
+<style>
+  :root {
+    --bg: #f5f3ef;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #888;
+    --accent: #d97757;
+    --aoi: #6ba3c9;
+    --ryu: #d97757;
+    --border: #e5e0d8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header {
+    padding: 20px 16px 12px;
+    text-align: center;
+  }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  .balance-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .balance-card .amount { font-size: 1.8rem; font-weight: bold; margin: 6px 0; }
+  .balance-card .label { color: var(--muted); font-size: 0.85rem; }
+
+  form.entry {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .row > * { flex: 1; }
+  input, select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+  }
+  .toggle-group { display: flex; gap: 8px; }
+  .toggle-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.95rem;
+  }
+  .toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .toggle-btn.active.aoi { background: var(--aoi); border-color: var(--aoi); }
+
+  button.submit {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--text);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  button.submit:disabled { opacity: 0.5; }
+
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  li.item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  li.item .tag {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .tag.aoi { background: var(--aoi); }
+  .tag.ryu { background: var(--ryu); }
+  li.item .main { flex: 1; min-width: 0; }
+  li.item .desc { font-weight: 500; }
+  li.item .meta { font-size: 0.78rem; color: var(--muted); }
+  li.item .amount { font-weight: bold; white-space: nowrap; }
+  li.item .del {
+    border: none; background: none; color: var(--muted);
+    font-size: 1.1rem; cursor: pointer; padding: 4px;
+  }
+  .empty { text-align: center; color: var(--muted); padding: 20px; }
+  .settled-tag {
+    display: inline-block; font-size: 0.7rem; padding: 2px 6px;
+    border-radius: 6px; background: #eee; color: #666; margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>家計簿</h1>
+</header>
+
+<div class="container">
+  <div class="balance-card" id="balanceCard">
+    <div class="label">読み込み中...</div>
+  </div>
+
+  <form class="entry" id="entryForm">
+    <div class="row">
+      <input type="date" id="fDate" required>
+      <input type="number" id="fAmount" placeholder="金額" inputmode="numeric" required>
+    </div>
+    <div class="row">
+      <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
+    </div>
+    <div class="row">
+      <div class="toggle-group" id="payerGroup">
+        <div class="toggle-btn aoi" data-value="碧">碧</div>
+        <div class="toggle-btn" data-value="竜">竜</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="toggle-group" id="typeGroup">
+        <div class="toggle-btn" data-value="支出">支出</div>
+        <div class="toggle-btn" data-value="精算">精算</div>
+      </div>
+    </div>
+    <button type="submit" class="submit" id="submitBtn">追加</button>
+  </form>
+
+  <ul class="list" id="list">
+    <li class="empty">読み込み中...</li>
+  </ul>
+</div>
+
+<script>
+  // ここに GAS のデプロイURLを貼り付けてください
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
+
+  const state = { payer: '碧', type: '支出' };
+
+  const balanceCard = document.getElementById('balanceCard');
+  const list = document.getElementById('list');
+  const form = document.getElementById('entryForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const fDate = document.getElementById('fDate');
+  const fAmount = document.getElementById('fAmount');
+  const fDesc = document.getElementById('fDesc');
+
+  fDate.value = new Date().toISOString().slice(0, 10);
+
+  document.getElementById('payerGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    state.payer = btn.dataset.value;
+    render_();
+  });
+  document.getElementById('typeGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    state.type = btn.dataset.value;
+    render_();
+  });
+
+  function render_() {
+    document.querySelectorAll('#payerGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === state.payer;
+      b.classList.toggle('active', active);
+      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+    });
+    document.querySelectorAll('#typeGroup .toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === state.type);
+    });
+  }
+  render_();
+
+  function getPassphrase_(forceAsk) {
+    let p = localStorage.getItem('kakeibo_passphrase');
+    if (!p || forceAsk) {
+      p = prompt('合言葉を入力してください');
+      if (p) localStorage.setItem('kakeibo_passphrase', p);
+    }
+    return p;
+  }
+
+  function yen_(n) {
+    return '¥' + Number(n).toLocaleString();
+  }
+
+  function renderBalance_(balance) {
+    if (balance === 0) {
+      balanceCard.innerHTML = '<div class="label">貸し借りなし</div><div class="amount">✅ 精算済み</div>';
+      return;
+    }
+    const from = balance > 0 ? '竜' : '碧';
+    const to = balance > 0 ? '碧' : '竜';
+    balanceCard.innerHTML =
+      '<div class="label">' + from + ' → ' + to + '</div>' +
+      '<div class="amount">' + yen_(Math.abs(balance)) + '</div>';
+  }
+
+  function renderList_(items) {
+    if (!items.length) {
+      list.innerHTML = '<li class="empty">まだ記録がありません</li>';
+      return;
+    }
+    list.innerHTML = items.map(it => {
+      const tagClass = it.payer === '碧' ? 'aoi' : 'ryu';
+      const settled = it.type === '精算' ? '<span class="settled-tag">精算</span>' : '';
+      return (
+        '<li class="item" data-id="' + it.id + '">' +
+        '<span class="tag ' + tagClass + '"></span>' +
+        '<div class="main">' +
+          '<div class="desc">' + escapeHtml_(it.desc) + settled + '</div>' +
+          '<div class="meta">' + it.date + ' ・ ' + it.payer + 'が支払い</div>' +
+        '</div>' +
+        '<div class="amount">' + yen_(it.amount) + '</div>' +
+        '<button class="del" data-id="' + it.id + '">🗑</button>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  function escapeHtml_(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  async function load_() {
+    try {
+      const res = await fetch(GAS_URL);
+      const data = await res.json();
+      renderBalance_(data.balance);
+      renderList_(data.items);
+    } catch (err) {
+      balanceCard.innerHTML = '<div class="label">読み込みに失敗しました</div>';
+      list.innerHTML = '<li class="empty">GAS_URL の設定を確認してください</li>';
+    }
+  }
+
+  async function postAction_(payload, retry) {
+    const passphrase = getPassphrase_(retry);
+    if (!passphrase) return null;
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(Object.assign({ passphrase }, payload)),
+    });
+    const data = await res.json();
+    if (data.error === '合言葉が違います') {
+      alert('合言葉が違います。もう一度入力してください。');
+      localStorage.removeItem('kakeibo_passphrase');
+      return postAction_(payload, true);
+    }
+    if (data.error) {
+      alert('エラー: ' + data.error);
+      return null;
+    }
+    return data;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中...';
+    const payload = {
+      action: 'add',
+      date: fDate.value,
+      amount: fAmount.value,
+      desc: fDesc.value,
+      payer: state.payer,
+      type: state.type,
+    };
+    const data = await postAction_(payload, false);
+    if (data) {
+      renderBalance_(data.balance);
+      renderList_(data.items);
+      fAmount.value = '';
+      fDesc.value = '';
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = '追加';
+  });
+
+  list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.del');
+    if (!btn) return;
+    if (!confirm('この記録を削除しますか？')) return;
+    const data = await postAction_({ action: 'delete', id: btn.dataset.id }, false);
+    if (data) {
+      renderBalance_(data.balance);
+      renderList_(data.items);
+    }
+  });
+
+  load_();
+</script>
+</body>
+</html>
