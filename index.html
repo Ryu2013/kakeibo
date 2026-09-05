@@ -31,6 +31,27 @@
   .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
   [hidden] { display: none !important; }
 
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .month-nav .nav-btn {
+    border: none;
+    background: var(--card);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+  }
+  .month-nav .month-label {
+    font-weight: bold;
+    font-size: 1.05rem;
+  }
+
   .balance-card {
     background: var(--card);
     border-radius: 16px;
@@ -47,7 +68,7 @@
     border-radius: 16px;
     padding: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
   .row { display: flex; gap: 8px; margin-bottom: 10px; }
   .row > * { flex: 1; }
@@ -86,26 +107,25 @@
     margin-top: 4px;
   }
   button.submit:disabled { opacity: 0.5; }
+  button.btn-small {
+    width: auto;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
 
-  .month-nav {
+  .pending-section { margin-bottom: 16px; }
+  .pending-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  .month-nav .nav-btn {
-    border: none;
-    background: var(--card);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    font-size: 1.1rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    cursor: pointer;
-  }
-  .month-nav .month-label {
-    font-weight: bold;
-    font-size: 1.05rem;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
   }
 
   .month-swipe { touch-action: pan-y; }
@@ -122,6 +142,11 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
   li.item.is-settled { opacity: 0.55; }
+  li.item.pending-item {
+    background: #fffaf5;
+    border: 1px dashed var(--border);
+    box-shadow: none;
+  }
   li.item .tag {
     width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
@@ -182,6 +207,25 @@
   .modal-card input { margin-bottom: 12px; text-align: center; }
   .error-text { color: #c0392b; font-size: 0.85rem; min-height: 1.2em; margin: 0 0 8px; }
 
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .toast {
     position: fixed;
     left: 50%;
@@ -204,6 +248,12 @@
 </header>
 
 <div class="container" id="app" hidden>
+  <div class="month-nav">
+    <button class="nav-btn" id="prevMonth" type="button">‹</button>
+    <div class="month-label" id="monthLabel">-</div>
+    <button class="nav-btn" id="nextMonth" type="button">›</button>
+  </div>
+
   <div class="balance-card" id="balanceCard">
     <div class="label">読み込み中...</div>
   </div>
@@ -225,10 +275,12 @@
     <button type="submit" class="submit" id="submitBtn">追加</button>
   </form>
 
-  <div class="month-nav">
-    <button class="nav-btn" id="prevMonth" type="button">‹</button>
-    <div class="month-label" id="monthLabel">-</div>
-    <button class="nav-btn" id="nextMonth" type="button">›</button>
+  <div class="pending-section" id="pendingSection" hidden>
+    <div class="pending-header">
+      <span>未送信 (<span id="pendingCount">0</span>件)</span>
+      <button class="btn-small" id="sendBtn" type="button">送信する</button>
+    </div>
+    <ul class="list" id="pendingList"></ul>
   </div>
 
   <div class="month-swipe" id="monthSwipe">
@@ -265,22 +317,27 @@
   </div>
 </div>
 
+<div class="loading-overlay" id="loadingOverlay" hidden>
+  <div class="spinner"></div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script>
   // ここに GAS のデプロイURLを貼り付けてください
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
+  const PENDING_KEY = 'kakeibo_pending';
 
   const state = { payer: '碧' };
   let allItems = [];
+  let pending = loadPending_();
   let currentMonth = todayMonth_();
 
   const appEl = document.getElementById('app');
   const balanceCard = document.getElementById('balanceCard');
   const list = document.getElementById('list');
   const form = document.getElementById('entryForm');
-  const submitBtn = document.getElementById('submitBtn');
   const fDate = document.getElementById('fDate');
   const fAmount = document.getElementById('fAmount');
   const fDesc = document.getElementById('fDesc');
@@ -293,6 +350,11 @@
   const settleBtn = document.getElementById('settleBtn');
   const settledBanner = document.getElementById('settledBanner');
 
+  const pendingSection = document.getElementById('pendingSection');
+  const pendingList = document.getElementById('pendingList');
+  const pendingCount = document.getElementById('pendingCount');
+  const sendBtn = document.getElementById('sendBtn');
+
   const loginOverlay = document.getElementById('loginOverlay');
   const loginForm = document.getElementById('loginForm');
   const loginInput = document.getElementById('loginInput');
@@ -304,6 +366,7 @@
   const confirmCancel = document.getElementById('confirmCancel');
   const confirmOk = document.getElementById('confirmOk');
 
+  const loadingOverlay = document.getElementById('loadingOverlay');
   const toast = document.getElementById('toast');
 
   fDate.value = new Date().toISOString().slice(0, 10);
@@ -327,6 +390,16 @@
   function itemsForMonth_(ym) {
     return allItems.filter(it => it.date.slice(0, 7) === ym);
   }
+
+  function loadPending_() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function savePending_() {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  }
+
+  function showLoading_() { loadingOverlay.hidden = false; }
+  function hideLoading_() { loadingOverlay.hidden = true; }
 
   function showToast_(msg) {
     toast.textContent = msg;
@@ -384,6 +457,16 @@
       '<div class="amount">' + yen_(Math.abs(balance)) + '</div>';
   }
 
+  function calcMonthBalance_(items) {
+    let balance = 0;
+    items.forEach(it => {
+      if (it.settled) return;
+      const sign = it.payer === '碧' ? 1 : -1;
+      balance += sign * (it.amount / 2);
+    });
+    return Math.round(balance);
+  }
+
   function renderList_(items) {
     if (!items.length) {
       list.innerHTML = '<li class="empty">この月の記録はありません</li>';
@@ -406,9 +489,29 @@
     }).join('');
   }
 
+  function renderPending_() {
+    pendingSection.hidden = pending.length === 0;
+    pendingCount.textContent = pending.length;
+    pendingList.innerHTML = pending.map(p => {
+      const tagClass = p.payer === '碧' ? 'aoi' : 'ryu';
+      return (
+        '<li class="item pending-item" data-local-id="' + p.localId + '">' +
+        '<span class="tag ' + tagClass + '"></span>' +
+        '<div class="main">' +
+          '<div class="desc">' + escapeHtml_(p.desc) + '</div>' +
+          '<div class="meta">' + p.date + ' ・ ' + p.payer + 'が支払い（未送信）</div>' +
+        '</div>' +
+        '<div class="amount">' + yen_(p.amount) + '</div>' +
+        '<button class="del pending-remove" data-local-id="' + p.localId + '">✕</button>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
   function renderMonth_() {
     monthLabel.textContent = formatMonthLabel_(currentMonth);
     const items = itemsForMonth_(currentMonth);
+    renderBalance_(calcMonthBalance_(items));
     renderList_(items);
     if (!items.length) {
       settleBar.hidden = true;
@@ -451,12 +554,16 @@
   settleBtn.addEventListener('click', async () => {
     const ok = await askConfirm_(formatMonthLabel_(currentMonth) + '分をすべて精算済みにしますか？');
     if (!ok) return;
-    const data = await postAction_({ action: 'settleMonth', yearMonth: currentMonth });
-    if (data) {
-      allItems = data.items;
-      renderBalance_(data.balance);
-      renderMonth_();
-      showToast_('精算済みにしました');
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'settleMonth', yearMonth: currentMonth });
+      if (data) {
+        allItems = data.items;
+        renderMonth_();
+        showToast_('精算済みにしました');
+      }
+    } finally {
+      hideLoading_();
     }
   });
 
@@ -474,7 +581,6 @@
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  // GAS_URLへのGETは合言葉が必要。失敗したらログイン画面へ戻す。
   async function fetchData_(passphrase) {
     const url = GAS_URL + '?passphrase=' + encodeURIComponent(passphrase);
     const res = await fetch(url);
@@ -494,8 +600,8 @@
       loginOverlay.hidden = true;
       appEl.hidden = false;
       allItems = data.items;
-      renderBalance_(data.balance);
       renderMonth_();
+      renderPending_();
       return true;
     } catch (err) {
       if (showError) loginError.textContent = '通信に失敗しました。GAS_URLを確認してください。';
@@ -533,29 +639,51 @@
     return data;
   }
 
-  form.addEventListener('submit', async (e) => {
+  // 「追加」はローカルの未送信リストに積むだけ。通信は「送信する」でまとめて行う。
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
-    submitBtn.disabled = true;
-    submitBtn.textContent = '送信中...';
-    const payload = {
-      action: 'add',
+    pending.push({
+      localId: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
       date: fDate.value,
-      amount: fAmount.value,
       desc: fDesc.value,
+      amount: Number(fAmount.value),
       payer: state.payer,
-    };
-    const data = await postAction_(payload);
-    if (data) {
-      allItems = data.items;
-      currentMonth = fDate.value.slice(0, 7);
-      renderBalance_(data.balance);
-      renderMonth_();
-      fAmount.value = '';
-      fDesc.value = '';
-      showToast_('追加しました');
+    });
+    savePending_();
+    renderPending_();
+    fAmount.value = '';
+    fDesc.value = '';
+    fDesc.focus();
+  });
+
+  pendingList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pending-remove');
+    if (!btn) return;
+    pending = pending.filter(p => p.localId !== btn.dataset.localId);
+    savePending_();
+    renderPending_();
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    if (!pending.length) return;
+    showLoading_();
+    try {
+      const data = await postAction_({
+        action: 'add',
+        items: pending.map(p => ({ date: p.date, desc: p.desc, amount: p.amount, payer: p.payer })),
+      });
+      if (data) {
+        currentMonth = pending[pending.length - 1].date.slice(0, 7);
+        pending = [];
+        savePending_();
+        renderPending_();
+        allItems = data.items;
+        renderMonth_();
+        showToast_('送信しました');
+      }
+    } finally {
+      hideLoading_();
     }
-    submitBtn.disabled = false;
-    submitBtn.textContent = '追加';
   });
 
   list.addEventListener('click', async (e) => {
@@ -563,12 +691,16 @@
     if (!btn) return;
     const ok = await askConfirm_('この記録を削除しますか？');
     if (!ok) return;
-    const data = await postAction_({ action: 'delete', id: btn.dataset.id });
-    if (data) {
-      allItems = data.items;
-      renderBalance_(data.balance);
-      renderMonth_();
-      showToast_('削除しました');
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'delete', id: btn.dataset.id });
+      if (data) {
+        allItems = data.items;
+        renderMonth_();
+        showToast_('削除しました');
+      }
+    } finally {
+      hideLoading_();
     }
   });
 

@@ -41,23 +41,31 @@ function doPost(e) {
 
   try {
     if (body.action === 'add') {
-      const amount = Number(body.amount);
-      if (!amount || amount <= 0) {
-        return jsonResponse_({ error: '金額が不正です' });
+      const list = Array.isArray(body.items) ? body.items : [];
+      if (!list.length) {
+        return jsonResponse_({ error: '追加するデータがありません' });
       }
-      if (PAYERS.indexOf(body.payer) === -1) {
-        return jsonResponse_({ error: '支払者が不正です' });
+      const rows = [];
+      for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        const amount = Number(it.amount);
+        if (!amount || amount <= 0) {
+          return jsonResponse_({ error: (i + 1) + '件目: 金額が不正です' });
+        }
+        if (PAYERS.indexOf(it.payer) === -1) {
+          return jsonResponse_({ error: (i + 1) + '件目: 支払者が不正です' });
+        }
+        rows.push([
+          Utilities.getUuid(),
+          it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+          it.desc || '',
+          amount,
+          it.payer,
+          false,
+        ]);
       }
       const sheet = getSheet_();
-      const id = Utilities.getUuid();
-      sheet.appendRow([
-        id,
-        body.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-        body.desc || '',
-        amount,
-        body.payer,
-        false,
-      ]);
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
       const items = readItems_();
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
     }
