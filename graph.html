@@ -28,8 +28,7 @@
     padding: 20px 16px 12px;
     text-align: center;
   }
-  header h1 { margin: 0 0 6px; font-size: 1.3rem; }
-  header a { color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+  header h1 { margin: 0; font-size: 1.3rem; }
   [hidden] { display: none !important; }
   .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
   .section-title {
@@ -43,32 +42,152 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  .hamburger-btn {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 50;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 60;
+  }
+  .menu-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 260px;
+    max-width: 80%;
+    background: var(--card);
+    z-index: 70;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    padding: 60px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .menu-drawer.open { transform: translateX(0); }
+  .menu-user {
+    font-weight: bold;
+    padding: 10px 10px 14px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px 10px;
+    border: none;
+    background: none;
+    font-size: 0.95rem;
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .menu-item:active { background: var(--bg); }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+<button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<div class="menu-backdrop" id="menuBackdrop" hidden></div>
+<nav class="menu-drawer" id="menuDrawer">
+  <div class="menu-user" id="menuUser">-</div>
+  <a class="menu-item" href="index.html">家計簿</a>
+  <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
+</nav>
+
 <header>
   <h1>家計簿グラフ</h1>
-  <a href="index.html">← 記録に戻る</a>
 </header>
 
 <div class="container">
-  <div class="empty" id="statusMsg">読み込み中...</div>
+  <div class="empty" id="statusMsg" hidden>まだ記録がありません</div>
   <div id="chartsWrap" hidden>
     <h2 class="section-title">残高の推移（月ごと）</h2>
     <div class="chart-card"><canvas id="balanceChart"></canvas></div>
   </div>
 </div>
 
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
+  const LOGIN_ID_KEY = 'kakeibo_login_id';
+  const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
 
   const statusMsg = document.getElementById('statusMsg');
   const chartsWrap = document.getElementById('chartsWrap');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const menuBackdrop = document.getElementById('menuBackdrop');
+  const menuDrawer = document.getElementById('menuDrawer');
+  const menuUser = document.getElementById('menuUser');
+  const logoutBtn = document.getElementById('logoutBtn');
 
   function getPassphrase_() {
     return localStorage.getItem(STORAGE_KEY) || '';
   }
+  function clearPassphrase_() {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LOGIN_ID_KEY);
+  }
+  function hideLoading_() { loadingOverlay.hidden = true; }
+
+  function openMenu_() {
+    menuDrawer.classList.add('open');
+    menuBackdrop.hidden = false;
+  }
+  function closeMenu_() {
+    menuDrawer.classList.remove('open');
+    menuBackdrop.hidden = true;
+  }
+  menuBtn.addEventListener('click', openMenu_);
+  menuBackdrop.addEventListener('click', closeMenu_);
+  logoutBtn.addEventListener('click', () => {
+    clearPassphrase_();
+    location.href = 'index.html';
+  });
 
   function monthsRange_(items) {
     if (!items.length) return [];
@@ -104,6 +223,7 @@
     const months = monthsRange_(items);
     if (!months.length) {
       statusMsg.textContent = 'まだ記録がありません';
+      statusMsg.hidden = false;
       return;
     }
     const labels = months.map(formatMonthShort_);
@@ -126,7 +246,6 @@
       },
     });
 
-    statusMsg.hidden = true;
     chartsWrap.hidden = false;
   }
 
@@ -136,12 +255,20 @@
       location.href = 'index.html';
       return;
     }
+    const loginId = localStorage.getItem(LOGIN_ID_KEY);
+    if (loginId) {
+      menuUser.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
+    }
+    menuBtn.hidden = false;
+
     let data;
     try {
       const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase));
       data = await res.json();
     } catch (err) {
+      hideLoading_();
       statusMsg.textContent = '通信エラーが発生しました';
+      statusMsg.hidden = false;
       return;
     }
     if (data.error) {
@@ -152,7 +279,10 @@
       renderCharts_(data.items);
     } catch (err) {
       statusMsg.textContent = 'グラフの描画に失敗しました';
+      statusMsg.hidden = false;
       console.error(err);
+    } finally {
+      hideLoading_();
     }
   }
 
