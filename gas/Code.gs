@@ -3,7 +3,7 @@
  * スプレッドシートの「拡張機能 > Apps Script」に貼り付けて使う。
  * デプロイ: ウェブアプリ / 実行ユーザー:自分 / アクセス:全員
  *
- * シート列: id, 日付, 内容, 金額, 支払者, 精算済み
+ * シート列: id, 日付, 内容, 金額, 支払者, 精算済み, 全額請求
  */
 
 const SHEET_NAME = '支出';
@@ -62,10 +62,11 @@ function doPost(e) {
           amount,
           it.payer,
           false,
+          !!it.fullCharge,
         ]);
       }
       const sheet = getSheet_();
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
       const items = readItems_();
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
     }
@@ -121,19 +122,21 @@ function readItems_() {
         amount: Number(r[3]),
         payer: r[4],
         settled: r[5] === true || r[5] === 'TRUE',
+        fullCharge: r[6] === true || r[6] === 'TRUE',
       };
     })
     .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
 }
 
 // 残高: 正なら「竜が碧に借りている」、負なら「碧が竜に借りている」
-// 精算済みの記録は残高計算から除外する
+// 精算済みの記録は残高計算から除外する。全額請求は半額にせず全額を計上する
 function calcBalance_(items) {
   let balance = 0;
   items.forEach(function (it) {
     if (it.settled) return;
     const sign = it.payer === '碧' ? 1 : -1;
-    balance += sign * (it.amount / 2);
+    const portion = it.fullCharge ? it.amount : it.amount / 2;
+    balance += sign * portion;
   });
   return Math.round(balance);
 }
@@ -143,7 +146,7 @@ function getSheet_() {
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(['id', '日付', '内容', '金額', '支払者', '精算済み']);
+    sheet.appendRow(['id', '日付', '内容', '金額', '支払者', '精算済み', '全額請求']);
   }
   return sheet;
 }

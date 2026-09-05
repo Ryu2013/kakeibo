@@ -24,10 +24,12 @@
     padding-bottom: 40px;
   }
   header {
-    padding: 20px 16px 12px;
+    padding: 20px 16px 4px;
     text-align: center;
   }
   header h1 { margin: 0; font-size: 1.3rem; }
+  .who-am-i { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+  .who-am-i a { color: var(--accent); text-decoration: none; }
   .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
   [hidden] { display: none !important; }
 
@@ -35,7 +37,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin: 16px 0 14px;
   }
   .month-nav .nav-btn {
     border: none;
@@ -58,18 +60,23 @@
     padding: 20px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
   .balance-card .amount { font-size: 1.8rem; font-weight: bold; margin: 6px 0; }
   .balance-card .label { color: var(--muted); font-size: 0.85rem; }
 
-  form.entry {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 16px;
+  .open-entry-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-bottom: 20px;
   }
+
   .row { display: flex; gap: 8px; margin-bottom: 10px; }
   .row > * { flex: 1; }
   input, select {
@@ -108,24 +115,20 @@
   }
   button.submit:disabled { opacity: 0.5; }
   button.btn-small {
-    width: auto;
-    padding: 8px 16px;
+    padding: 10px 16px;
     border: none;
     border-radius: 8px;
     background: var(--accent);
     color: #fff;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
   }
 
-  .pending-section { margin-bottom: 16px; }
+  .pending-section { margin-top: 18px; }
   .pending-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
     font-size: 0.85rem;
     color: var(--muted);
+    margin-bottom: 8px;
   }
 
   .month-swipe { touch-action: pan-y; }
@@ -162,10 +165,11 @@
     font-size: 1.1rem; cursor: pointer; padding: 4px;
   }
   .empty { text-align: center; color: var(--muted); padding: 20px; }
-  .settled-tag {
+  .tag-badge {
     display: inline-block; font-size: 0.7rem; padding: 2px 6px;
     border-radius: 6px; background: #eee; color: #666; margin-left: 6px;
   }
+  .tag-badge.full { background: #fde8d8; color: #a05a2c; }
 
   .settle-bar { margin-top: 14px; }
   .settle-bar button {
@@ -192,15 +196,17 @@
     justify-content: center;
     padding: 20px;
     z-index: 100;
+    overflow-y: auto;
   }
   .modal-card {
     background: var(--card);
     border-radius: 16px;
     padding: 24px;
-    max-width: 320px;
+    max-width: 340px;
     width: 100%;
     text-align: center;
     box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    margin: auto;
   }
   .modal-card h2 { margin: 0 0 4px; font-size: 1.2rem; }
   .modal-card p { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
@@ -245,6 +251,7 @@
 <body>
 <header>
   <h1>家計簿</h1>
+  <div class="who-am-i" id="whoAmI" hidden></div>
 </header>
 
 <div class="container" id="app" hidden>
@@ -258,30 +265,7 @@
     <div class="label">読み込み中...</div>
   </div>
 
-  <form class="entry" id="entryForm">
-    <div class="row">
-      <input type="date" id="fDate" required>
-      <input type="number" id="fAmount" placeholder="金額" inputmode="numeric" required>
-    </div>
-    <div class="row">
-      <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
-    </div>
-    <div class="row">
-      <div class="toggle-group" id="payerGroup">
-        <div class="toggle-btn aoi" data-value="碧">碧</div>
-        <div class="toggle-btn" data-value="竜">竜</div>
-      </div>
-    </div>
-    <button type="submit" class="submit" id="submitBtn">追加</button>
-  </form>
-
-  <div class="pending-section" id="pendingSection" hidden>
-    <div class="pending-header">
-      <span>未送信 (<span id="pendingCount">0</span>件)</span>
-      <button class="btn-small" id="sendBtn" type="button">送信する</button>
-    </div>
-    <ul class="list" id="pendingList"></ul>
-  </div>
+  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ 記録を追加</button>
 
   <div class="month-swipe" id="monthSwipe">
     <ul class="list" id="list">
@@ -298,12 +282,48 @@
 <div class="overlay" id="loginOverlay">
   <div class="modal-card">
     <h2>家計簿</h2>
-    <p>合言葉を入力してください</p>
+    <p>ログインIDと合言葉を入力してください</p>
     <form id="loginForm">
+      <div class="toggle-group" id="loginIdGroup" style="margin-bottom: 12px;">
+        <div class="toggle-btn aoi active" data-value="aoi">aoi (碧)</div>
+        <div class="toggle-btn" data-value="ryu">ryu (竜)</div>
+      </div>
       <input type="password" id="loginInput" placeholder="合言葉" autocomplete="off" autocapitalize="off">
       <p class="error-text" id="loginError"></p>
       <button type="submit" class="submit" id="loginBtn">入る</button>
     </form>
+  </div>
+</div>
+
+<div class="overlay" id="entryOverlay" hidden>
+  <div class="modal-card" style="text-align: left;">
+    <h2 style="text-align: center;">新規登録</h2>
+    <form id="entryForm">
+      <div class="row">
+        <input type="date" id="fDate" required>
+        <input type="number" id="fAmount" placeholder="金額" inputmode="numeric" required>
+      </div>
+      <div class="row">
+        <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
+      </div>
+      <div class="row">
+        <div class="toggle-group" id="splitGroup">
+          <div class="toggle-btn active" data-value="half">割り勘</div>
+          <div class="toggle-btn" data-value="full">全額請求</div>
+        </div>
+      </div>
+      <button type="submit" class="submit" id="submitBtn">追加</button>
+    </form>
+
+    <div class="pending-section" id="pendingSection" hidden>
+      <div class="pending-header">未送信 (<span id="pendingCount">0</span>件)</div>
+      <ul class="list" id="pendingList"></ul>
+    </div>
+
+    <div class="row" style="margin-top: 14px;">
+      <button class="toggle-btn" id="entryCloseBtn" type="button">閉じる</button>
+      <button class="btn-small" id="sendBtn" type="button" style="flex: 1;">送信する</button>
+    </div>
   </div>
 </div>
 
@@ -327,17 +347,25 @@
   // ここに GAS のデプロイURLを貼り付けてください
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
+  const LOGIN_ID_KEY = 'kakeibo_login_id';
   const PENDING_KEY = 'kakeibo_pending';
 
-  const state = { payer: '碧' };
+  const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
+
+  const state = { loginId: 'aoi', splitType: 'half' };
   let allItems = [];
   let pending = loadPending_();
   let currentMonth = todayMonth_();
 
+  const whoAmI = document.getElementById('whoAmI');
   const appEl = document.getElementById('app');
   const balanceCard = document.getElementById('balanceCard');
   const list = document.getElementById('list');
-  const form = document.getElementById('entryForm');
+  const openEntryBtn = document.getElementById('openEntryBtn');
+
+  const entryOverlay = document.getElementById('entryOverlay');
+  const entryForm = document.getElementById('entryForm');
+  const entryCloseBtn = document.getElementById('entryCloseBtn');
   const fDate = document.getElementById('fDate');
   const fAmount = document.getElementById('fAmount');
   const fDesc = document.getElementById('fDesc');
@@ -425,21 +453,38 @@
     });
   }
 
-  document.getElementById('payerGroup').addEventListener('click', (e) => {
+  // --- ログインID (aoi/ryu) の切り替え ---
+  document.getElementById('loginIdGroup').addEventListener('click', (e) => {
     const btn = e.target.closest('.toggle-btn');
     if (!btn) return;
-    state.payer = btn.dataset.value;
-    renderPayerToggle_();
+    state.loginId = btn.dataset.value;
+    renderLoginIdToggle_();
   });
-
-  function renderPayerToggle_() {
-    document.querySelectorAll('#payerGroup .toggle-btn').forEach(b => {
-      const active = b.dataset.value === state.payer;
+  function renderLoginIdToggle_() {
+    document.querySelectorAll('#loginIdGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === state.loginId;
       b.classList.toggle('active', active);
-      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+      b.classList.toggle('aoi', active && b.dataset.value === 'aoi');
     });
   }
-  renderPayerToggle_();
+
+  // --- 割り勘 / 全額請求 の切り替え ---
+  document.getElementById('splitGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    state.splitType = btn.dataset.value;
+    renderSplitToggle_();
+  });
+  function renderSplitToggle_() {
+    document.querySelectorAll('#splitGroup .toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === state.splitType);
+    });
+  }
+  renderSplitToggle_();
+
+  function currentPayer_() {
+    return LOGIN_ID_TO_PAYER[state.loginId] || '碧';
+  }
 
   function yen_(n) {
     return '¥' + Number(n).toLocaleString();
@@ -462,7 +507,8 @@
     items.forEach(it => {
       if (it.settled) return;
       const sign = it.payer === '碧' ? 1 : -1;
-      balance += sign * (it.amount / 2);
+      const portion = it.fullCharge ? it.amount : it.amount / 2;
+      balance += sign * portion;
     });
     return Math.round(balance);
   }
@@ -474,12 +520,13 @@
     }
     list.innerHTML = items.map(it => {
       const tagClass = it.payer === '碧' ? 'aoi' : 'ryu';
-      const settledTag = it.settled ? '<span class="settled-tag">済</span>' : '';
+      const badges = (it.settled ? '<span class="tag-badge">済</span>' : '') +
+        (it.fullCharge ? '<span class="tag-badge full">全額</span>' : '');
       return (
         '<li class="item' + (it.settled ? ' is-settled' : '') + '" data-id="' + it.id + '">' +
         '<span class="tag ' + tagClass + '"></span>' +
         '<div class="main">' +
-          '<div class="desc">' + escapeHtml_(it.desc) + settledTag + '</div>' +
+          '<div class="desc">' + escapeHtml_(it.desc) + badges + '</div>' +
           '<div class="meta">' + it.date + ' ・ ' + it.payer + 'が支払い</div>' +
         '</div>' +
         '<div class="amount">' + yen_(it.amount) + '</div>' +
@@ -494,11 +541,12 @@
     pendingCount.textContent = pending.length;
     pendingList.innerHTML = pending.map(p => {
       const tagClass = p.payer === '碧' ? 'aoi' : 'ryu';
+      const badge = p.fullCharge ? '<span class="tag-badge full">全額</span>' : '';
       return (
         '<li class="item pending-item" data-local-id="' + p.localId + '">' +
         '<span class="tag ' + tagClass + '"></span>' +
         '<div class="main">' +
-          '<div class="desc">' + escapeHtml_(p.desc) + '</div>' +
+          '<div class="desc">' + escapeHtml_(p.desc) + badge + '</div>' +
           '<div class="meta">' + p.date + ' ・ ' + p.payer + 'が支払い（未送信）</div>' +
         '</div>' +
         '<div class="amount">' + yen_(p.amount) + '</div>' +
@@ -506,6 +554,9 @@
         '</li>'
       );
     }).join('');
+    openEntryBtn.textContent = pending.length
+      ? '＋ 記録を追加 (' + pending.length + '件未送信)'
+      : '＋ 記録を追加';
   }
 
   function renderMonth_() {
@@ -551,6 +602,14 @@
     }
   });
 
+  openEntryBtn.addEventListener('click', () => {
+    entryOverlay.hidden = false;
+    fAmount.focus();
+  });
+  entryCloseBtn.addEventListener('click', () => {
+    entryOverlay.hidden = true;
+  });
+
   settleBtn.addEventListener('click', async () => {
     const ok = await askConfirm_(formatMonthLabel_(currentMonth) + '分をすべて精算済みにしますか？');
     if (!ok) return;
@@ -576,9 +635,9 @@
   function getPassphrase_() {
     return localStorage.getItem(STORAGE_KEY) || '';
   }
-
   function clearPassphrase_() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LOGIN_ID_KEY);
   }
 
   async function fetchData_(passphrase) {
@@ -587,7 +646,21 @@
     return res.json();
   }
 
-  async function tryEnter_(passphrase, showError) {
+  function renderWhoAmI_() {
+    whoAmI.hidden = false;
+    whoAmI.innerHTML = 'ログイン中: ' + currentPayer_() + ' (' + state.loginId + ') ・ <a href="#" id="switchUser">切替</a>';
+    document.getElementById('switchUser').addEventListener('click', (e) => {
+      e.preventDefault();
+      clearPassphrase_();
+      appEl.hidden = true;
+      whoAmI.hidden = true;
+      loginOverlay.hidden = false;
+      loginInput.value = '';
+      loginInput.focus();
+    });
+  }
+
+  async function tryEnter_(loginId, passphrase, showError) {
     loginBtn.disabled = true;
     loginBtn.textContent = '確認中...';
     try {
@@ -596,15 +669,18 @@
         if (showError) loginError.textContent = data.error;
         return false;
       }
+      state.loginId = loginId;
       localStorage.setItem(STORAGE_KEY, passphrase);
+      localStorage.setItem(LOGIN_ID_KEY, loginId);
       loginOverlay.hidden = true;
       appEl.hidden = false;
+      renderWhoAmI_();
       allItems = data.items;
       renderMonth_();
       renderPending_();
       return true;
     } catch (err) {
-      if (showError) loginError.textContent = '通信に失敗しました。GAS_URLを確認してください。';
+      if (showError) showToast_('通信エラーが発生しました');
       return false;
     } finally {
       loginBtn.disabled = false;
@@ -615,19 +691,32 @@
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     loginError.textContent = '';
-    const ok = await tryEnter_(loginInput.value, true);
+    const ok = await tryEnter_(state.loginId, loginInput.value, true);
     if (!ok) loginInput.value = '';
   });
 
   async function postAction_(payload) {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
-    });
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
+      });
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
     if (data.error === '合言葉が違います') {
       clearPassphrase_();
       appEl.hidden = true;
+      whoAmI.hidden = true;
       loginOverlay.hidden = false;
       loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
       return null;
@@ -640,20 +729,23 @@
   }
 
   // 「追加」はローカルの未送信リストに積むだけ。通信は「送信する」でまとめて行う。
-  form.addEventListener('submit', (e) => {
+  entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     pending.push({
       localId: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
       date: fDate.value,
       desc: fDesc.value,
       amount: Number(fAmount.value),
-      payer: state.payer,
+      payer: currentPayer_(),
+      fullCharge: state.splitType === 'full',
     });
     savePending_();
     renderPending_();
     fAmount.value = '';
     fDesc.value = '';
-    fDesc.focus();
+    state.splitType = 'half';
+    renderSplitToggle_();
+    fAmount.focus();
   });
 
   pendingList.addEventListener('click', (e) => {
@@ -670,7 +762,7 @@
     try {
       const data = await postAction_({
         action: 'add',
-        items: pending.map(p => ({ date: p.date, desc: p.desc, amount: p.amount, payer: p.payer })),
+        items: pending.map(p => ({ date: p.date, desc: p.desc, amount: p.amount, payer: p.payer, fullCharge: p.fullCharge })),
       });
       if (data) {
         currentMonth = pending[pending.length - 1].date.slice(0, 7);
@@ -679,6 +771,7 @@
         renderPending_();
         allItems = data.items;
         renderMonth_();
+        entryOverlay.hidden = true;
         showToast_('送信しました');
       }
     } finally {
@@ -704,11 +797,16 @@
     }
   });
 
-  // 初回ロード: 保存済みの合言葉があれば自動で入室を試みる
+  // 初回ロード: 保存済みのログインID・合言葉があれば自動で入室を試みる
   (async function init_() {
-    const saved = getPassphrase_();
-    if (saved) {
-      const ok = await tryEnter_(saved, false);
+    const savedId = localStorage.getItem(LOGIN_ID_KEY);
+    const savedPass = getPassphrase_();
+    if (savedId) {
+      state.loginId = savedId;
+      renderLoginIdToggle_();
+    }
+    if (savedId && savedPass) {
+      const ok = await tryEnter_(savedId, savedPass, false);
       if (ok) return;
     }
     loginOverlay.hidden = false;
