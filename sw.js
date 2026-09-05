@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kakeibo-v1';
-const STATIC_ASSETS = ['./manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
+const CACHE_NAME = 'kakeibo-v2';
+const STATIC_ASSETS = ['./manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
@@ -30,6 +30,6 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // アイコン等の静的アセットはキャッシュ優先
+  // その他の静的アセットはキャッシュ優先
   e.respondWith(caches.match(e.request).then((cached) => cached || fetch(e.request)));
 });

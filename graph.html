@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>家計簿グラフ</title>
-<link rel="icon" href="icon-192.png" type="image/png">
 <meta name="theme-color" content="#f5f3ef">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <style>
@@ -14,8 +13,6 @@
     --text: #2b2b2b;
     --muted: #888;
     --accent: #d97757;
-    --aoi: #6ba3c9;
-    --ryu: #d97757;
     --border: #e5e0d8;
   }
   * { box-sizing: border-box; }
@@ -58,9 +55,6 @@
   <div id="chartsWrap" hidden>
     <h2 class="section-title">残高の推移（月ごと）</h2>
     <div class="chart-card"><canvas id="balanceChart"></canvas></div>
-
-    <h2 class="section-title">支出合計の内訳（月ごと）</h2>
-    <div class="chart-card"><canvas id="spendChart"></canvas></div>
   </div>
 </div>
 
@@ -95,22 +89,14 @@
     return y.slice(2) + '/' + Number(m);
   }
 
-  function calcMonthBalance_(items, ym) {
+  function calcMonthAmount_(items, ym) {
     let balance = 0;
     items.filter(it => it.date.slice(0, 7) === ym).forEach(it => {
       const sign = it.payer === '碧' ? 1 : -1;
       const portion = it.fullCharge ? it.amount : it.amount / 2;
       balance += sign * portion;
     });
-    return Math.round(balance);
-  }
-
-  function sumByPayer_(items, ym, payer) {
-    return Math.round(
-      items
-        .filter(it => it.date.slice(0, 7) === ym && it.payer === payer)
-        .reduce((s, it) => s + it.amount, 0)
-    );
+    return Math.round(Math.abs(balance));
   }
 
   function renderCharts_(items) {
@@ -120,53 +106,22 @@
       return;
     }
     const labels = months.map(formatMonthShort_);
-    const balances = months.map(ym => calcMonthBalance_(items, ym));
-    const aoiTotals = months.map(ym => sumByPayer_(items, ym, '碧'));
-    const ryuTotals = months.map(ym => sumByPayer_(items, ym, '竜'));
+    const amounts = months.map(ym => calcMonthAmount_(items, ym));
 
     new Chart(document.getElementById('balanceChart'), {
       type: 'bar',
       data: {
         labels: labels,
         datasets: [{
-          label: '残高',
-          data: balances,
-          backgroundColor: balances.map(v => v >= 0 ? '#d97757' : '#6ba3c9'),
+          label: '金額',
+          data: amounts,
+          backgroundColor: '#d97757',
         }],
       },
       options: {
         responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const v = ctx.raw;
-                if (v === 0) return '貸し借りなし';
-                return (v > 0 ? '竜→碧 ' : '碧→竜 ') + '¥' + Math.abs(v).toLocaleString();
-              },
-            },
-          },
-        },
+        plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } },
-      },
-    });
-
-    new Chart(document.getElementById('spendChart'), {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          { label: '碧', data: aoiTotals, backgroundColor: '#6ba3c9' },
-          { label: '竜', data: ryuTotals, backgroundColor: '#d97757' },
-        ],
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { stacked: true },
-          y: { stacked: true, beginAtZero: true },
-        },
       },
     });
 
