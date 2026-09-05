@@ -285,8 +285,8 @@
     <p>ログインIDと合言葉を入力してください</p>
     <form id="loginForm">
       <div class="toggle-group" id="loginIdGroup" style="margin-bottom: 12px;">
-        <div class="toggle-btn aoi active" data-value="aoi">aoi (碧)</div>
-        <div class="toggle-btn" data-value="ryu">ryu (竜)</div>
+        <div class="toggle-btn aoi active" data-value="aoi">碧</div>
+        <div class="toggle-btn" data-value="ryu">竜</div>
       </div>
       <input type="password" id="loginInput" placeholder="合言葉" autocomplete="off" autocapitalize="off">
       <p class="error-text" id="loginError"></p>
@@ -648,7 +648,7 @@
 
   function renderWhoAmI_() {
     whoAmI.hidden = false;
-    whoAmI.innerHTML = 'ログイン中: ' + currentPayer_() + ' (' + state.loginId + ') ・ <a href="#" id="switchUser">切替</a>';
+    whoAmI.innerHTML = 'ログイン中: ' + currentPayer_() + ' ・ <a href="#" id="switchUser">切替</a>';
     document.getElementById('switchUser').addEventListener('click', (e) => {
       e.preventDefault();
       clearPassphrase_();
