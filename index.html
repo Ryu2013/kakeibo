@@ -35,10 +35,69 @@
     text-align: center;
   }
   header h1 { margin: 0; font-size: 1.3rem; }
-  .who-am-i { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
-  .who-am-i a { color: var(--accent); text-decoration: none; }
   .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
   [hidden] { display: none !important; }
+
+  .hamburger-btn {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 50;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 60;
+  }
+  .menu-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 260px;
+    max-width: 80%;
+    background: var(--card);
+    z-index: 70;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    padding: 60px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .menu-drawer.open { transform: translateX(0); }
+  .menu-user {
+    font-weight: bold;
+    padding: 10px 10px 14px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px 10px;
+    border: none;
+    background: none;
+    font-size: 0.95rem;
+    color: var(--text);
+    text-decoration: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .menu-item:active { background: var(--bg); }
 
   .month-nav {
     display: flex;
@@ -256,10 +315,16 @@
 </style>
 </head>
 <body>
+<button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<div class="menu-backdrop" id="menuBackdrop" hidden></div>
+<nav class="menu-drawer" id="menuDrawer">
+  <div class="menu-user" id="menuUser">-</div>
+  <a class="menu-item" href="graph.html">📊 グラフを見る</a>
+  <button class="menu-item" id="logoutBtn" type="button">🚪 ログアウト</button>
+</nav>
+
 <header>
   <h1>家計簿</h1>
-  <div class="who-am-i" id="whoAmI" hidden></div>
-  <div class="who-am-i"><a href="graph.html">📊 グラフを見る</a></div>
 </header>
 
 <div class="container" id="app" hidden>
@@ -287,7 +352,7 @@
   <div class="settled-banner" id="settledBanner" hidden>✅ この月は精算済みです</div>
 </div>
 
-<div class="overlay" id="loginOverlay">
+<div class="overlay" id="loginOverlay" hidden>
   <div class="modal-card">
     <h2>家計簿</h2>
     <p>ログインIDと合言葉を入力してください</p>
@@ -345,7 +410,7 @@
   </div>
 </div>
 
-<div class="loading-overlay" id="loadingOverlay" hidden>
+<div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
 </div>
 
@@ -365,7 +430,6 @@
   let pending = loadPending_();
   let currentMonth = todayMonth_();
 
-  const whoAmI = document.getElementById('whoAmI');
   const appEl = document.getElementById('app');
   const balanceCard = document.getElementById('balanceCard');
   const list = document.getElementById('list');
@@ -404,6 +468,12 @@
 
   const loadingOverlay = document.getElementById('loadingOverlay');
   const toast = document.getElementById('toast');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const menuBackdrop = document.getElementById('menuBackdrop');
+  const menuDrawer = document.getElementById('menuDrawer');
+  const menuUser = document.getElementById('menuUser');
+  const logoutBtn = document.getElementById('logoutBtn');
 
   fDate.value = new Date().toISOString().slice(0, 10);
 
@@ -654,19 +724,30 @@
     return res.json();
   }
 
-  function renderWhoAmI_() {
-    whoAmI.hidden = false;
-    whoAmI.innerHTML = 'ログイン中: ' + currentPayer_() + ' ・ <a href="#" id="switchUser">切替</a>';
-    document.getElementById('switchUser').addEventListener('click', (e) => {
-      e.preventDefault();
-      clearPassphrase_();
-      appEl.hidden = true;
-      whoAmI.hidden = true;
-      loginOverlay.hidden = false;
-      loginInput.value = '';
-      loginInput.focus();
-    });
+  function renderMenuUser_() {
+    menuUser.textContent = 'ログイン中: ' + currentPayer_();
+    menuBtn.hidden = false;
   }
+
+  function openMenu_() {
+    menuDrawer.classList.add('open');
+    menuBackdrop.hidden = false;
+  }
+  function closeMenu_() {
+    menuDrawer.classList.remove('open');
+    menuBackdrop.hidden = true;
+  }
+  menuBtn.addEventListener('click', openMenu_);
+  menuBackdrop.addEventListener('click', closeMenu_);
+  logoutBtn.addEventListener('click', () => {
+    closeMenu_();
+    clearPassphrase_();
+    appEl.hidden = true;
+    menuBtn.hidden = true;
+    loginOverlay.hidden = false;
+    loginInput.value = '';
+    loginInput.focus();
+  });
 
   async function tryEnter_(loginId, passphrase, showError) {
     loginBtn.disabled = true;
@@ -682,7 +763,7 @@
       localStorage.setItem(LOGIN_ID_KEY, loginId);
       loginOverlay.hidden = true;
       appEl.hidden = false;
-      renderWhoAmI_();
+      renderMenuUser_();
       allItems = data.items;
       renderMonth_();
       renderPending_();
@@ -724,7 +805,7 @@
     if (data.error === '合言葉が違います') {
       clearPassphrase_();
       appEl.hidden = true;
-      whoAmI.hidden = true;
+      menuBtn.hidden = true;
       loginOverlay.hidden = false;
       loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
       return null;
@@ -815,8 +896,12 @@
     }
     if (savedId && savedPass) {
       const ok = await tryEnter_(savedId, savedPass, false);
-      if (ok) return;
+      if (ok) {
+        hideLoading_();
+        return;
+      }
     }
+    hideLoading_();
     loginOverlay.hidden = false;
     loginInput.focus();
   })();
