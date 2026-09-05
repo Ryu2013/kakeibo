@@ -29,6 +29,7 @@
   }
   header h1 { margin: 0; font-size: 1.3rem; }
   .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+  [hidden] { display: none !important; }
 
   .balance-card {
     background: var(--card);
@@ -116,6 +117,45 @@
     display: inline-block; font-size: 0.7rem; padding: 2px 6px;
     border-radius: 6px; background: #eee; color: #666; margin-left: 6px;
   }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+  .modal-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .modal-card h2 { margin: 0 0 4px; font-size: 1.2rem; }
+  .modal-card p { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
+  .modal-card input { margin-bottom: 12px; text-align: center; }
+  .error-text { color: #c0392b; font-size: 0.85rem; min-height: 1.2em; margin: 0 0 8px; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    background: #2b2b2b;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    z-index: 200;
+    max-width: 90%;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -123,7 +163,7 @@
   <h1>家計簿</h1>
 </header>
 
-<div class="container">
+<div class="container" id="app" hidden>
   <div class="balance-card" id="balanceCard">
     <div class="label">読み込み中...</div>
   </div>
@@ -156,12 +196,38 @@
   </ul>
 </div>
 
+<div class="overlay" id="loginOverlay">
+  <div class="modal-card">
+    <h2>家計簿</h2>
+    <p>合言葉を入力してください</p>
+    <form id="loginForm">
+      <input type="password" id="loginInput" placeholder="合言葉" autocomplete="off" autocapitalize="off">
+      <p class="error-text" id="loginError"></p>
+      <button type="submit" class="submit" id="loginBtn">入る</button>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOverlay" hidden>
+  <div class="modal-card">
+    <p id="confirmMsg" style="color: var(--text); margin-bottom: 20px;">この記録を削除しますか？</p>
+    <div class="row">
+      <button class="toggle-btn" id="confirmCancel">キャンセル</button>
+      <button class="toggle-btn active" id="confirmOk">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
 <script>
   // ここに GAS のデプロイURLを貼り付けてください
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
+  const STORAGE_KEY = 'kakeibo_passphrase';
 
   const state = { payer: '碧', type: '支出' };
 
+  const appEl = document.getElementById('app');
   const balanceCard = document.getElementById('balanceCard');
   const list = document.getElementById('list');
   const form = document.getElementById('entryForm');
@@ -170,7 +236,44 @@
   const fAmount = document.getElementById('fAmount');
   const fDesc = document.getElementById('fDesc');
 
+  const loginOverlay = document.getElementById('loginOverlay');
+  const loginForm = document.getElementById('loginForm');
+  const loginInput = document.getElementById('loginInput');
+  const loginError = document.getElementById('loginError');
+  const loginBtn = document.getElementById('loginBtn');
+
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmMsg = document.getElementById('confirmMsg');
+  const confirmCancel = document.getElementById('confirmCancel');
+  const confirmOk = document.getElementById('confirmOk');
+
+  const toast = document.getElementById('toast');
+
   fDate.value = new Date().toISOString().slice(0, 10);
+
+  function showToast_(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(showToast_._t);
+    showToast_._t = setTimeout(() => { toast.hidden = true; }, 2500);
+  }
+
+  function askConfirm_(message) {
+    return new Promise((resolve) => {
+      confirmMsg.textContent = message;
+      confirmOverlay.hidden = false;
+      const cleanup = (result) => {
+        confirmOverlay.hidden = true;
+        confirmCancel.removeEventListener('click', onCancel);
+        confirmOk.removeEventListener('click', onOk);
+        resolve(result);
+      };
+      const onCancel = () => cleanup(false);
+      const onOk = () => cleanup(true);
+      confirmCancel.addEventListener('click', onCancel);
+      confirmOk.addEventListener('click', onOk);
+    });
+  }
 
   document.getElementById('payerGroup').addEventListener('click', (e) => {
     const btn = e.target.closest('.toggle-btn');
@@ -196,15 +299,6 @@
     });
   }
   render_();
-
-  function getPassphrase_(forceAsk) {
-    let p = localStorage.getItem('kakeibo_passphrase');
-    if (!p || forceAsk) {
-      p = prompt('合言葉を入力してください');
-      if (p) localStorage.setItem('kakeibo_passphrase', p);
-    }
-    return p;
-  }
 
   function yen_(n) {
     return '¥' + Number(n).toLocaleString();
@@ -250,33 +344,81 @@
     }[c]));
   }
 
-  async function load_() {
+  function getPassphrase_() {
+    return localStorage.getItem(STORAGE_KEY) || '';
+  }
+
+  function clearPassphrase_() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // GAS_URLへのGETは合言葉が必要。失敗したらログイン画面へ戻す。
+  async function fetchData_(passphrase) {
+    const url = GAS_URL + '?passphrase=' + encodeURIComponent(passphrase);
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  async function tryEnter_(passphrase, showError) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = '確認中...';
     try {
-      const res = await fetch(GAS_URL);
-      const data = await res.json();
+      const data = await fetchData_(passphrase);
+      if (data.error) {
+        if (showError) loginError.textContent = data.error;
+        return false;
+      }
+      localStorage.setItem(STORAGE_KEY, passphrase);
+      loginOverlay.hidden = true;
+      appEl.hidden = false;
       renderBalance_(data.balance);
       renderList_(data.items);
+      return true;
     } catch (err) {
-      balanceCard.innerHTML = '<div class="label">読み込みに失敗しました</div>';
-      list.innerHTML = '<li class="empty">GAS_URL の設定を確認してください</li>';
+      if (showError) loginError.textContent = '通信に失敗しました。GAS_URLを確認してください。';
+      return false;
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = '入る';
     }
   }
 
-  async function postAction_(payload, retry) {
-    const passphrase = getPassphrase_(retry);
-    if (!passphrase) return null;
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.textContent = '';
+    const ok = await tryEnter_(loginInput.value, true);
+    if (!ok) loginInput.value = '';
+  });
+
+  async function reload_() {
+    const data = await fetchData_(getPassphrase_());
+    if (data.error) {
+      clearPassphrase_();
+      appEl.hidden = true;
+      loginOverlay.hidden = false;
+      loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
+      return null;
+    }
+    renderBalance_(data.balance);
+    renderList_(data.items);
+    return data;
+  }
+
+  async function postAction_(payload) {
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      body: JSON.stringify(Object.assign({ passphrase }, payload)),
+      body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
     });
     const data = await res.json();
     if (data.error === '合言葉が違います') {
-      alert('合言葉が違います。もう一度入力してください。');
-      localStorage.removeItem('kakeibo_passphrase');
-      return postAction_(payload, true);
+      clearPassphrase_();
+      appEl.hidden = true;
+      loginOverlay.hidden = false;
+      loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
+      return null;
     }
     if (data.error) {
-      alert('エラー: ' + data.error);
+      showToast_('エラー: ' + data.error);
       return null;
     }
     return data;
@@ -294,12 +436,13 @@
       payer: state.payer,
       type: state.type,
     };
-    const data = await postAction_(payload, false);
+    const data = await postAction_(payload);
     if (data) {
       renderBalance_(data.balance);
       renderList_(data.items);
       fAmount.value = '';
       fDesc.value = '';
+      showToast_('追加しました');
     }
     submitBtn.disabled = false;
     submitBtn.textContent = '追加';
@@ -308,15 +451,26 @@
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('.del');
     if (!btn) return;
-    if (!confirm('この記録を削除しますか？')) return;
-    const data = await postAction_({ action: 'delete', id: btn.dataset.id }, false);
+    const ok = await askConfirm_('この記録を削除しますか？');
+    if (!ok) return;
+    const data = await postAction_({ action: 'delete', id: btn.dataset.id });
     if (data) {
       renderBalance_(data.balance);
       renderList_(data.items);
+      showToast_('削除しました');
     }
   });
 
-  load_();
+  // 初回ロード: 保存済みの合言葉があれば自動で入室を試みる
+  (async function init_() {
+    const saved = getPassphrase_();
+    if (saved) {
+      const ok = await tryEnter_(saved, false);
+      if (ok) return;
+    }
+    loginOverlay.hidden = false;
+    loginInput.focus();
+  })();
 </script>
 </body>
 </html>

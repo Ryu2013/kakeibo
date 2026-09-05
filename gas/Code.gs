@@ -9,6 +9,9 @@ const PASSPHRASE = 'bebichan';
 const PAYERS = ['碧', '竜'];
 
 function doGet(e) {
+  if (e.parameter.passphrase !== PASSPHRASE) {
+    return jsonResponse_({ error: '合言葉が違います' });
+  }
   const items = readItems_();
   return jsonResponse_({ items: items, balance: calcBalance_(items) });
 }

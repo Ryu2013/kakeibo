@@ -16,15 +16,17 @@
 8. 「デプロイ」をクリックし、承認を求められたら自分のGoogleアカウントで許可する
 9. 発行された **ウェブアプリのURL** をコピーする（`https://script.google.com/macros/s/xxxx/exec` の形）
 
-https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec
-
-AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-
-
 初回実行時にシートが自動で作られます（シート名: `支出`）。
+
+### Code.gs を変更したとき
+
+`gas/Code.gs` を書き換えた後は、Apps Scriptエディタで保存するだけでは反映されない。
+「デプロイ」→「デプロイを管理」→ 既存デプロイの鉛筆アイコン →
+バージョンを「新バージョン」にして「デプロイ」を押すまでが必須。
 
 ### 合言葉の変更
 
-`gas/Code.gs` 内の `PASSPHRASE` を書き換えて、再度「デプロイ」→「デプロイを管理」→ 既存デプロイの編集で新バージョンとしてデプロイし直せば変更できます。
+`gas/Code.gs` 内の `PASSPHRASE` を書き換えて、上記の手順で新バージョンとしてデプロイし直せば変更できる。
 
 ## 2. フロント（index.html）の設定
 
@@ -34,6 +36,9 @@ AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-
 const GAS_URL = 'PUT_YOUR_GAS_WEBAPP_URL_HERE';
 ```
 
+このURLはクライアント側のJSにそのまま埋め込まれるため、GitHub Pagesで公開すると誰でもソースから見える。
+アクセス制限は合言葉のみで担保しているので、それ以上の秘密情報とは思わないこと。
+
 ## 3. GitHub Pages で公開
 
 1. このフォルダの内容でGitHubリポジトリを作成し、push する
@@ -42,7 +47,8 @@ const GAS_URL = 'PUT_YOUR_GAS_WEBAPP_URL_HERE';
 
 ## 使い方
 
-- 初回、記録を追加/削除しようとすると合言葉の入力を求められる（一度入力すればブラウザに保存され、以後聞かれない）
+- アプリを開くとまずログイン画面が表示され、合言葉の入力が必須（閲覧・追加・削除すべてに必要）
+- 一度合言葉を入力すればブラウザに保存され、以後は自動でログインされる
 - 「支出」は自動で半額ずつ負担として計算される
 - 「精算」はどちらかが相手に実際にお金を渡したときに記録する（全額がそのまま残高に反映される）
 - 画面上部に「誰が誰にいくら借りているか」が自動計算されて表示される
