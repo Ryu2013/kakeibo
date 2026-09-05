@@ -84,6 +84,38 @@ function doPost(e) {
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
     }
 
+    if (body.action === 'update') {
+      const amount = Number(body.amount);
+      if (!amount || amount <= 0) {
+        return jsonResponse_({ error: '金額が不正です' });
+      }
+      if (PAYERS.indexOf(body.payer) === -1) {
+        return jsonResponse_({ error: '支払者が不正です' });
+      }
+      const sheet = getSheet_();
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.getRange(i + 1, 2, 1, 6).setValues([[
+            body.date || data[i][1],
+            body.desc || '',
+            amount,
+            body.payer,
+            data[i][5], // 精算済みは変更しない
+            !!body.fullCharge,
+          ]]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return jsonResponse_({ error: '対象の記録が見つかりません' });
+      }
+      const items = readItems_();
+      return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
+    }
+
     if (body.action === 'settleMonth') {
       const yearMonth = String(body.yearMonth || '');
       if (!/^\d{4}-\d{2}$/.test(yearMonth)) {

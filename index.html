@@ -268,6 +268,8 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
   li.item.is-settled { opacity: 0.55; }
+  #list li.item { cursor: pointer; }
+  #list li.item:active { background: var(--bg); }
   li.item.pending-item {
     background: #fffaf5;
     border: 1px dashed var(--border);
@@ -437,6 +439,12 @@
       <div class="row">
         <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
       </div>
+      <div class="row">
+        <div class="toggle-group" id="entryPayerGroup">
+          <div class="toggle-btn aoi" data-value="碧">碧</div>
+          <div class="toggle-btn" data-value="竜">竜</div>
+        </div>
+      </div>
       <div class="row split-row">
         <span class="split-side" data-side="half">割り勘</span>
         <label class="switch">
@@ -455,6 +463,40 @@
       <div class="pending-header">未送信 (<span id="pendingCount">0</span>件)</div>
       <ul class="list" id="pendingList"></ul>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="editOverlay" hidden>
+  <div class="modal-card" style="text-align: left; position: relative;">
+    <button class="modal-close" id="editCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2 style="text-align: center;">記録を編集</h2>
+    <form id="editForm">
+      <div class="row">
+        <input type="date" id="eDate" required>
+        <input type="number" id="eAmount" placeholder="金額" inputmode="numeric" required>
+      </div>
+      <div class="row">
+        <input type="text" id="eDesc" placeholder="内容" required>
+      </div>
+      <div class="row">
+        <div class="toggle-group" id="editPayerGroup">
+          <div class="toggle-btn aoi" data-value="碧">碧</div>
+          <div class="toggle-btn" data-value="竜">竜</div>
+        </div>
+      </div>
+      <div class="row split-row">
+        <span class="split-side" data-side="half">割り勘</span>
+        <label class="switch">
+          <input type="checkbox" id="editSplitToggle">
+          <span class="switch-slider"></span>
+        </label>
+        <span class="split-side" data-side="full">全額請求</span>
+      </div>
+      <div class="row">
+        <button type="submit" class="submit" id="editSaveBtn" style="margin-top: 0;">更新する</button>
+        <button class="btn-small" id="editDeleteBtn" type="button" style="background: #c0392b;">削除する</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -532,6 +574,16 @@
   const menuDrawer = document.getElementById('menuDrawer');
   const menuUser = document.getElementById('menuUser');
   const logoutBtn = document.getElementById('logoutBtn');
+
+  const editOverlay = document.getElementById('editOverlay');
+  const editForm = document.getElementById('editForm');
+  const editCloseBtn = document.getElementById('editCloseBtn');
+  const eDate = document.getElementById('eDate');
+  const eAmount = document.getElementById('eAmount');
+  const eDesc = document.getElementById('eDesc');
+  const editSplitToggle = document.getElementById('editSplitToggle');
+  const editDeleteBtn = document.getElementById('editDeleteBtn');
+  let editingId = null;
 
   fDate.value = new Date().toISOString().slice(0, 10);
 
@@ -612,11 +664,26 @@
   });
   function renderSplitToggle_() {
     splitToggle.checked = state.splitType === 'full';
-    document.querySelectorAll('.split-side').forEach(el => {
+    document.querySelectorAll('#entryOverlay .split-side').forEach(el => {
       el.classList.toggle('active', el.dataset.side === state.splitType);
     });
   }
   renderSplitToggle_();
+
+  // --- 新規登録ダイアログ内の支払者選択 ---
+  document.getElementById('entryPayerGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    state.entryPayer = btn.dataset.value;
+    renderEntryPayerToggle_();
+  });
+  function renderEntryPayerToggle_() {
+    document.querySelectorAll('#entryPayerGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === state.entryPayer;
+      b.classList.toggle('active', active);
+      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+    });
+  }
 
   function currentPayer_() {
     return LOGIN_ID_TO_PAYER[state.loginId] || '碧';
@@ -666,7 +733,6 @@
           '<div class="meta">' + it.date + ' ・ ' + it.payer + 'が支払い</div>' +
         '</div>' +
         '<div class="amount">' + yen_(it.amount) + '</div>' +
-        '<button class="del" data-id="' + it.id + '">🗑</button>' +
         '</li>'
       );
     }).join('');
@@ -739,6 +805,8 @@
   });
 
   openEntryBtn.addEventListener('click', () => {
+    state.entryPayer = currentPayer_();
+    renderEntryPayerToggle_();
     entryOverlay.hidden = false;
     fAmount.focus();
   });
@@ -883,7 +951,7 @@
       date: fDate.value,
       desc: fDesc.value,
       amount: Number(fAmount.value),
-      payer: currentPayer_(),
+      payer: state.entryPayer || currentPayer_(),
       fullCharge: state.splitType === 'full',
     });
     savePending_();
@@ -926,17 +994,94 @@
     }
   });
 
-  list.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.del');
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('li.item');
+    if (!li || !li.dataset.id) return;
+    const item = allItems.find(it => it.id === li.dataset.id);
+    if (!item) return;
+    openEditDialog_(item);
+  });
+
+  function openEditDialog_(item) {
+    editingId = item.id;
+    eDate.value = item.date;
+    eAmount.value = item.amount;
+    eDesc.value = item.desc;
+    state.editPayer = item.payer;
+    state.editSplitType = item.fullCharge ? 'full' : 'half';
+    renderEditPayerToggle_();
+    renderEditSplitToggle_();
+    editOverlay.hidden = false;
+  }
+
+  editCloseBtn.addEventListener('click', () => {
+    editOverlay.hidden = true;
+    editingId = null;
+  });
+
+  document.getElementById('editPayerGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
     if (!btn) return;
+    state.editPayer = btn.dataset.value;
+    renderEditPayerToggle_();
+  });
+  function renderEditPayerToggle_() {
+    document.querySelectorAll('#editPayerGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === state.editPayer;
+      b.classList.toggle('active', active);
+      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+    });
+  }
+
+  editSplitToggle.addEventListener('change', () => {
+    state.editSplitType = editSplitToggle.checked ? 'full' : 'half';
+    renderEditSplitToggle_();
+  });
+  function renderEditSplitToggle_() {
+    editSplitToggle.checked = state.editSplitType === 'full';
+    document.querySelectorAll('#editOverlay .split-side').forEach(el => {
+      el.classList.toggle('active', el.dataset.side === state.editSplitType);
+    });
+  }
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editingId) return;
+    showLoading_();
+    try {
+      const data = await postAction_({
+        action: 'update',
+        id: editingId,
+        date: eDate.value,
+        desc: eDesc.value,
+        amount: Number(eAmount.value),
+        payer: state.editPayer,
+        fullCharge: state.editSplitType === 'full',
+      });
+      if (data) {
+        allItems = data.items;
+        renderMonth_();
+        editOverlay.hidden = true;
+        editingId = null;
+        showToast_('更新しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  editDeleteBtn.addEventListener('click', async () => {
+    if (!editingId) return;
     const ok = await askConfirm_('この記録を削除しますか？');
     if (!ok) return;
     showLoading_();
     try {
-      const data = await postAction_({ action: 'delete', id: btn.dataset.id });
+      const data = await postAction_({ action: 'delete', id: editingId });
       if (data) {
         allItems = data.items;
         renderMonth_();
+        editOverlay.hidden = true;
+        editingId = null;
         showToast_('削除しました');
       }
     } finally {

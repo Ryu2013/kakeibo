@@ -140,7 +140,7 @@
 <div class="container">
   <div class="empty" id="statusMsg" hidden>まだ記録がありません</div>
   <div id="chartsWrap" hidden>
-    <h2 class="section-title">残高の推移（月ごと）</h2>
+    <h2 class="section-title">二人の合計支出（月ごと）</h2>
     <div class="chart-card"><canvas id="balanceChart"></canvas></div>
   </div>
 </div>
@@ -210,13 +210,11 @@
   }
 
   function calcMonthAmount_(items, ym) {
-    let balance = 0;
-    items.filter(it => it.date.slice(0, 7) === ym).forEach(it => {
-      const sign = it.payer === '碧' ? 1 : -1;
-      const portion = it.fullCharge ? it.amount : it.amount / 2;
-      balance += sign * portion;
-    });
-    return Math.round(Math.abs(balance));
+    return Math.round(
+      items
+        .filter(it => it.date.slice(0, 7) === ym)
+        .reduce((sum, it) => sum + it.amount, 0)
+    );
   }
 
   function renderCharts_(items) {
