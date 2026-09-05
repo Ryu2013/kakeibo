@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>家計簿</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#f5f3ef">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -317,8 +319,8 @@
 <div class="menu-backdrop" id="menuBackdrop" hidden></div>
 <nav class="menu-drawer" id="menuDrawer">
   <div class="menu-user" id="menuUser">-</div>
-  <a class="menu-item" href="graph.html">📊 グラフを見る</a>
-  <button class="menu-item" id="logoutBtn" type="button">🚪 ログアウト</button>
+  <a class="menu-item" href="graph.html">グラフを見る</a>
+  <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
 </nav>
 
 <header>
@@ -347,7 +349,7 @@
   <div class="settle-bar" id="settleBar" hidden>
     <button class="submit" id="settleBtn" type="button">この月を精算済みにする</button>
   </div>
-  <div class="settled-banner" id="settledBanner" hidden>✅ この月は精算済みです</div>
+  <div class="settled-banner" id="settledBanner" hidden>この月は精算済みです</div>
 </div>
 
 <div class="overlay" id="loginOverlay" hidden>
@@ -568,7 +570,7 @@
 
   function renderBalance_(balance) {
     if (balance === 0) {
-      balanceCard.innerHTML = '<div class="label">貸し借りなし</div><div class="amount">✅ 精算済み</div>';
+      balanceCard.innerHTML = '<div class="label">貸し借りなし</div><div class="amount">精算済み</div>';
       return;
     }
     const from = balance > 0 ? '竜' : '碧';
