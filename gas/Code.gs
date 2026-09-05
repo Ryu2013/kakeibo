@@ -161,3 +161,49 @@ function formatDate_(d) {
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
+
+// 1年半以上前の「精算済み」記録を削除する。未精算のまま古くなった記録は
+// 誤って消さないよう残す(手動で精算するか確認してから消すこと)。
+// installMonthlyCleanupTrigger() を一度だけ実行しておくと毎月自動で呼ばれる。
+const RETENTION_MONTHS = 18;
+
+function cleanupOldRecords() {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - RETENTION_MONTHS);
+  const cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getSheet_();
+    const data = sheet.getDataRange().getValues();
+    let deleted = 0;
+    // 後ろから消さないと行番号がずれる
+    for (let i = data.length - 1; i >= 1; i--) {
+      const rowDate = formatDate_(data[i][1]);
+      const settled = data[i][5] === true || data[i][5] === 'TRUE';
+      if (rowDate < cutoffStr && settled) {
+        sheet.deleteRow(i + 1);
+        deleted++;
+      }
+    }
+    Logger.log('cleanupOldRecords: deleted ' + deleted + ' rows older than ' + cutoffStr);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Apps Scriptエディタでこの関数を選んで一度だけ実行(▶)すると、
+// 毎月1日の深夜にcleanupOldRecordsが自動実行されるようになる。
+function installMonthlyCleanupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'cleanupOldRecords') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('cleanupOldRecords')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(3)
+    .create();
+}

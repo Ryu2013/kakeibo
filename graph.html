@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家計簿グラフ</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<meta name="theme-color" content="#f5f3ef">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f3ef;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #888;
+    --accent: #d97757;
+    --aoi: #6ba3c9;
+    --ryu: #d97757;
+    --border: #e5e0d8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header {
+    padding: 20px 16px 12px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 6px; font-size: 1.3rem; }
+  header a { color: var(--accent); text-decoration: none; font-size: 0.85rem; }
+  [hidden] { display: none !important; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+  .section-title {
+    font-size: 0.95rem;
+    margin: 24px 0 10px;
+  }
+  .chart-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>家計簿グラフ</h1>
+  <a href="index.html">← 記録に戻る</a>
+</header>
+
+<div class="container">
+  <div class="empty" id="statusMsg">読み込み中...</div>
+  <div id="chartsWrap" hidden>
+    <h2 class="section-title">残高の推移（月ごと）</h2>
+    <div class="chart-card"><canvas id="balanceChart"></canvas></div>
+
+    <h2 class="section-title">支出合計の内訳（月ごと）</h2>
+    <div class="chart-card"><canvas id="spendChart"></canvas></div>
+  </div>
+</div>
+
+<script>
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
+  const STORAGE_KEY = 'kakeibo_passphrase';
+
+  const statusMsg = document.getElementById('statusMsg');
+  const chartsWrap = document.getElementById('chartsWrap');
+
+  function getPassphrase_() {
+    return localStorage.getItem(STORAGE_KEY) || '';
+  }
+
+  function monthsRange_(items) {
+    if (!items.length) return [];
+    const months = Array.from(new Set(items.map(it => it.date.slice(0, 7)))).sort();
+    const [fy, fm] = months[0].split('-').map(Number);
+    const [ly, lm] = months[months.length - 1].split('-').map(Number);
+    const result = [];
+    let y = fy, m = fm;
+    while (y < ly || (y === ly && m <= lm)) {
+      result.push(y + '-' + String(m).padStart(2, '0'));
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return result;
+  }
+
+  function formatMonthShort_(ym) {
+    const [y, m] = ym.split('-');
+    return y.slice(2) + '/' + Number(m);
+  }
+
+  function calcMonthBalance_(items, ym) {
+    let balance = 0;
+    items.filter(it => it.date.slice(0, 7) === ym).forEach(it => {
+      const sign = it.payer === '碧' ? 1 : -1;
+      const portion = it.fullCharge ? it.amount : it.amount / 2;
+      balance += sign * portion;
+    });
+    return Math.round(balance);
+  }
+
+  function sumByPayer_(items, ym, payer) {
+    return Math.round(
+      items
+        .filter(it => it.date.slice(0, 7) === ym && it.payer === payer)
+        .reduce((s, it) => s + it.amount, 0)
+    );
+  }
+
+  function renderCharts_(items) {
+    const months = monthsRange_(items);
+    if (!months.length) {
+      statusMsg.textContent = 'まだ記録がありません';
+      return;
+    }
+    const labels = months.map(formatMonthShort_);
+    const balances = months.map(ym => calcMonthBalance_(items, ym));
+    const aoiTotals = months.map(ym => sumByPayer_(items, ym, '碧'));
+    const ryuTotals = months.map(ym => sumByPayer_(items, ym, '竜'));
+
+    new Chart(document.getElementById('balanceChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '残高',
+          data: balances,
+          backgroundColor: balances.map(v => v >= 0 ? '#d97757' : '#6ba3c9'),
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw;
+                if (v === 0) return '貸し借りなし';
+                return (v > 0 ? '竜→碧 ' : '碧→竜 ') + '¥' + Math.abs(v).toLocaleString();
+              },
+            },
+          },
+        },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
+
+    new Chart(document.getElementById('spendChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: '碧', data: aoiTotals, backgroundColor: '#6ba3c9' },
+          { label: '竜', data: ryuTotals, backgroundColor: '#d97757' },
+        ],
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true },
+        },
+      },
+    });
+
+    statusMsg.hidden = true;
+    chartsWrap.hidden = false;
+  }
+
+  async function main_() {
+    const passphrase = getPassphrase_();
+    if (!passphrase) {
+      location.href = 'index.html';
+      return;
+    }
+    let data;
+    try {
+      const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase));
+      data = await res.json();
+    } catch (err) {
+      statusMsg.textContent = '通信エラーが発生しました';
+      return;
+    }
+    if (data.error) {
+      location.href = 'index.html';
+      return;
+    }
+    renderCharts_(data.items);
+  }
+
+  main_();
+</script>
+</body>
+</html>
