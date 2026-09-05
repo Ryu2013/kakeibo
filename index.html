@@ -87,6 +87,29 @@
   }
   button.submit:disabled { opacity: 0.5; }
 
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .month-nav .nav-btn {
+    border: none;
+    background: var(--card);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+  }
+  .month-nav .month-label {
+    font-weight: bold;
+    font-size: 1.05rem;
+  }
+
+  .month-swipe { touch-action: pan-y; }
+
   ul.list { list-style: none; padding: 0; margin: 0; }
   li.item {
     background: var(--card);
@@ -98,6 +121,7 @@
     gap: 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
+  li.item.is-settled { opacity: 0.55; }
   li.item .tag {
     width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
@@ -116,6 +140,22 @@
   .settled-tag {
     display: inline-block; font-size: 0.7rem; padding: 2px 6px;
     border-radius: 6px; background: #eee; color: #666; margin-left: 6px;
+  }
+
+  .settle-bar { margin-top: 14px; }
+  .settle-bar button {
+    background: #fff;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .settled-banner {
+    margin-top: 14px;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    background: #eef7ee;
+    color: #2f7a3d;
+    font-size: 0.9rem;
   }
 
   .overlay {
@@ -182,18 +222,25 @@
         <div class="toggle-btn" data-value="竜">竜</div>
       </div>
     </div>
-    <div class="row">
-      <div class="toggle-group" id="typeGroup">
-        <div class="toggle-btn" data-value="支出">支出</div>
-        <div class="toggle-btn" data-value="精算">精算</div>
-      </div>
-    </div>
     <button type="submit" class="submit" id="submitBtn">追加</button>
   </form>
 
-  <ul class="list" id="list">
-    <li class="empty">読み込み中...</li>
-  </ul>
+  <div class="month-nav">
+    <button class="nav-btn" id="prevMonth" type="button">‹</button>
+    <div class="month-label" id="monthLabel">-</div>
+    <button class="nav-btn" id="nextMonth" type="button">›</button>
+  </div>
+
+  <div class="month-swipe" id="monthSwipe">
+    <ul class="list" id="list">
+      <li class="empty">読み込み中...</li>
+    </ul>
+  </div>
+
+  <div class="settle-bar" id="settleBar" hidden>
+    <button class="submit" id="settleBtn" type="button">この月を精算済みにする</button>
+  </div>
+  <div class="settled-banner" id="settledBanner" hidden>✅ この月は精算済みです</div>
 </div>
 
 <div class="overlay" id="loginOverlay">
@@ -225,7 +272,9 @@
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
 
-  const state = { payer: '碧', type: '支出' };
+  const state = { payer: '碧' };
+  let allItems = [];
+  let currentMonth = todayMonth_();
 
   const appEl = document.getElementById('app');
   const balanceCard = document.getElementById('balanceCard');
@@ -235,6 +284,14 @@
   const fDate = document.getElementById('fDate');
   const fAmount = document.getElementById('fAmount');
   const fDesc = document.getElementById('fDesc');
+
+  const monthLabel = document.getElementById('monthLabel');
+  const monthSwipe = document.getElementById('monthSwipe');
+  const prevMonthBtn = document.getElementById('prevMonth');
+  const nextMonthBtn = document.getElementById('nextMonth');
+  const settleBar = document.getElementById('settleBar');
+  const settleBtn = document.getElementById('settleBtn');
+  const settledBanner = document.getElementById('settledBanner');
 
   const loginOverlay = document.getElementById('loginOverlay');
   const loginForm = document.getElementById('loginForm');
@@ -250,6 +307,26 @@
   const toast = document.getElementById('toast');
 
   fDate.value = new Date().toISOString().slice(0, 10);
+
+  function todayMonth_() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function addMonths_(ym, delta) {
+    const parts = ym.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1 + delta, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function formatMonthLabel_(ym) {
+    const parts = ym.split('-').map(Number);
+    return parts[0] + '年' + parts[1] + '月';
+  }
+
+  function itemsForMonth_(ym) {
+    return allItems.filter(it => it.date.slice(0, 7) === ym);
+  }
 
   function showToast_(msg) {
     toast.textContent = msg;
@@ -279,26 +356,17 @@
     const btn = e.target.closest('.toggle-btn');
     if (!btn) return;
     state.payer = btn.dataset.value;
-    render_();
-  });
-  document.getElementById('typeGroup').addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    state.type = btn.dataset.value;
-    render_();
+    renderPayerToggle_();
   });
 
-  function render_() {
+  function renderPayerToggle_() {
     document.querySelectorAll('#payerGroup .toggle-btn').forEach(b => {
       const active = b.dataset.value === state.payer;
       b.classList.toggle('active', active);
       b.classList.toggle('aoi', active && b.dataset.value === '碧');
     });
-    document.querySelectorAll('#typeGroup .toggle-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.value === state.type);
-    });
   }
-  render_();
+  renderPayerToggle_();
 
   function yen_(n) {
     return '¥' + Number(n).toLocaleString();
@@ -318,17 +386,17 @@
 
   function renderList_(items) {
     if (!items.length) {
-      list.innerHTML = '<li class="empty">まだ記録がありません</li>';
+      list.innerHTML = '<li class="empty">この月の記録はありません</li>';
       return;
     }
     list.innerHTML = items.map(it => {
       const tagClass = it.payer === '碧' ? 'aoi' : 'ryu';
-      const settled = it.type === '精算' ? '<span class="settled-tag">精算</span>' : '';
+      const settledTag = it.settled ? '<span class="settled-tag">済</span>' : '';
       return (
-        '<li class="item" data-id="' + it.id + '">' +
+        '<li class="item' + (it.settled ? ' is-settled' : '') + '" data-id="' + it.id + '">' +
         '<span class="tag ' + tagClass + '"></span>' +
         '<div class="main">' +
-          '<div class="desc">' + escapeHtml_(it.desc) + settled + '</div>' +
+          '<div class="desc">' + escapeHtml_(it.desc) + settledTag + '</div>' +
           '<div class="meta">' + it.date + ' ・ ' + it.payer + 'が支払い</div>' +
         '</div>' +
         '<div class="amount">' + yen_(it.amount) + '</div>' +
@@ -337,6 +405,60 @@
       );
     }).join('');
   }
+
+  function renderMonth_() {
+    monthLabel.textContent = formatMonthLabel_(currentMonth);
+    const items = itemsForMonth_(currentMonth);
+    renderList_(items);
+    if (!items.length) {
+      settleBar.hidden = true;
+      settledBanner.hidden = true;
+    } else {
+      const allSettled = items.every(it => it.settled);
+      settleBar.hidden = allSettled;
+      settledBanner.hidden = !allSettled;
+    }
+  }
+
+  prevMonthBtn.addEventListener('click', () => {
+    currentMonth = addMonths_(currentMonth, -1);
+    renderMonth_();
+  });
+  nextMonthBtn.addEventListener('click', () => {
+    currentMonth = addMonths_(currentMonth, 1);
+    renderMonth_();
+  });
+
+  let touchStartX = null;
+  let touchStartY = null;
+  monthSwipe.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+  }, { passive: true });
+  monthSwipe.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    touchStartX = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      currentMonth = addMonths_(currentMonth, dx < 0 ? 1 : -1);
+      renderMonth_();
+    }
+  });
+
+  settleBtn.addEventListener('click', async () => {
+    const ok = await askConfirm_(formatMonthLabel_(currentMonth) + '分をすべて精算済みにしますか？');
+    if (!ok) return;
+    const data = await postAction_({ action: 'settleMonth', yearMonth: currentMonth });
+    if (data) {
+      allItems = data.items;
+      renderBalance_(data.balance);
+      renderMonth_();
+      showToast_('精算済みにしました');
+    }
+  });
 
   function escapeHtml_(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -371,8 +493,9 @@
       localStorage.setItem(STORAGE_KEY, passphrase);
       loginOverlay.hidden = true;
       appEl.hidden = false;
+      allItems = data.items;
       renderBalance_(data.balance);
-      renderList_(data.items);
+      renderMonth_();
       return true;
     } catch (err) {
       if (showError) loginError.textContent = '通信に失敗しました。GAS_URLを確認してください。';
@@ -389,20 +512,6 @@
     const ok = await tryEnter_(loginInput.value, true);
     if (!ok) loginInput.value = '';
   });
-
-  async function reload_() {
-    const data = await fetchData_(getPassphrase_());
-    if (data.error) {
-      clearPassphrase_();
-      appEl.hidden = true;
-      loginOverlay.hidden = false;
-      loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
-      return null;
-    }
-    renderBalance_(data.balance);
-    renderList_(data.items);
-    return data;
-  }
 
   async function postAction_(payload) {
     const res = await fetch(GAS_URL, {
@@ -434,12 +543,13 @@
       amount: fAmount.value,
       desc: fDesc.value,
       payer: state.payer,
-      type: state.type,
     };
     const data = await postAction_(payload);
     if (data) {
+      allItems = data.items;
+      currentMonth = fDate.value.slice(0, 7);
       renderBalance_(data.balance);
-      renderList_(data.items);
+      renderMonth_();
       fAmount.value = '';
       fDesc.value = '';
       showToast_('追加しました');
@@ -455,8 +565,9 @@
     if (!ok) return;
     const data = await postAction_({ action: 'delete', id: btn.dataset.id });
     if (data) {
+      allItems = data.items;
       renderBalance_(data.balance);
-      renderList_(data.items);
+      renderMonth_();
       showToast_('削除しました');
     }
   });
