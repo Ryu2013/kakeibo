@@ -168,6 +168,63 @@
   .toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .toggle-btn.active.aoi { background: var(--aoi); border-color: var(--aoi); }
 
+  .modal-close {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .split-row {
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .split-side {
+    font-size: 0.85rem;
+    color: var(--muted);
+    flex: none;
+  }
+  .split-side.active { color: var(--text); font-weight: bold; }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex: none;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    transition: 0.2s;
+    border-radius: 22px;
+    cursor: pointer;
+  }
+  .switch-slider::before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+  .switch input:checked + .switch-slider { background: var(--accent); }
+  .switch input:checked + .switch-slider::before { transform: translateX(18px); }
+
   button.submit {
     width: 100%;
     padding: 12px;
@@ -369,7 +426,8 @@
 </div>
 
 <div class="overlay" id="entryOverlay" hidden>
-  <div class="modal-card" style="text-align: left;">
+  <div class="modal-card" style="text-align: left; position: relative;">
+    <button class="modal-close" id="entryCloseBtn" type="button" aria-label="閉じる">×</button>
     <h2 style="text-align: center;">新規登録</h2>
     <form id="entryForm">
       <div class="row">
@@ -379,23 +437,23 @@
       <div class="row">
         <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
       </div>
-      <div class="row">
-        <div class="toggle-group" id="splitGroup">
-          <div class="toggle-btn active" data-value="half">割り勘</div>
-          <div class="toggle-btn" data-value="full">全額請求</div>
-        </div>
+      <div class="row split-row">
+        <span class="split-side" data-side="half">割り勘</span>
+        <label class="switch">
+          <input type="checkbox" id="splitToggle">
+          <span class="switch-slider"></span>
+        </label>
+        <span class="split-side" data-side="full">全額請求</span>
       </div>
-      <button type="submit" class="submit" id="submitBtn">追加</button>
+      <div class="row">
+        <button type="submit" class="submit" id="submitBtn" style="margin-top: 0;">追加</button>
+        <button class="btn-small" id="sendBtn" type="button">送信する</button>
+      </div>
     </form>
 
     <div class="pending-section" id="pendingSection" hidden>
       <div class="pending-header">未送信 (<span id="pendingCount">0</span>件)</div>
       <ul class="list" id="pendingList"></ul>
-    </div>
-
-    <div class="row" style="margin-top: 14px;">
-      <button class="toggle-btn" id="entryCloseBtn" type="button">閉じる</button>
-      <button class="btn-small" id="sendBtn" type="button" style="flex: 1;">送信する</button>
     </div>
   </div>
 </div>
@@ -547,15 +605,15 @@
   }
 
   // --- 割り勘 / 全額請求 の切り替え ---
-  document.getElementById('splitGroup').addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    state.splitType = btn.dataset.value;
+  const splitToggle = document.getElementById('splitToggle');
+  splitToggle.addEventListener('change', () => {
+    state.splitType = splitToggle.checked ? 'full' : 'half';
     renderSplitToggle_();
   });
   function renderSplitToggle_() {
-    document.querySelectorAll('#splitGroup .toggle-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.value === state.splitType);
+    splitToggle.checked = state.splitType === 'full';
+    document.querySelectorAll('.split-side').forEach(el => {
+      el.classList.toggle('active', el.dataset.side === state.splitType);
     });
   }
   renderSplitToggle_();
