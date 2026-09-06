@@ -57,6 +57,20 @@
     font-size: 1.2rem;
     cursor: pointer;
   }
+  .reload-btn {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 50;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem;
+    cursor: pointer;
+  }
   .menu-backdrop {
     position: fixed;
     inset: 0;
@@ -126,6 +140,7 @@
 </head>
 <body>
 <button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<button class="reload-btn" id="reloadBtn" type="button" aria-label="再読み込み">⟳</button>
 <div class="menu-backdrop" id="menuBackdrop" hidden></div>
 <nav class="menu-drawer" id="menuDrawer">
   <div class="menu-user" id="menuUser">-</div>
@@ -165,6 +180,8 @@
   const menuDrawer = document.getElementById('menuDrawer');
   const menuUser = document.getElementById('menuUser');
   const logoutBtn = document.getElementById('logoutBtn');
+  const reloadBtn = document.getElementById('reloadBtn');
+  reloadBtn.addEventListener('click', () => location.reload());
 
   function getPassphrase_() {
     return localStorage.getItem(STORAGE_KEY) || '';

@@ -122,12 +122,20 @@ function doPost(e) {
     }
 
     if (body.action === 'shoppingAdd') {
-      const desc = String(body.desc || '').trim();
-      if (!desc) {
-        return jsonResponse_({ error: '内容を入力してください' });
+      const list = Array.isArray(body.items) ? body.items : [];
+      if (!list.length) {
+        return jsonResponse_({ error: '追加するデータがありません' });
+      }
+      const rows = [];
+      for (let i = 0; i < list.length; i++) {
+        const desc = String(list[i].desc || '').trim();
+        if (!desc) {
+          return jsonResponse_({ error: (i + 1) + '件目: 内容を入力してください' });
+        }
+        rows.push([Utilities.getUuid(), desc, false, '']);
       }
       const sheet = getShoppingSheet_();
-      sheet.appendRow([Utilities.getUuid(), desc, false, '']);
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
       return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
     }
 

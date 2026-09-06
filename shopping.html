@@ -35,6 +35,12 @@
     background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     font-size: 1.2rem; cursor: pointer;
   }
+  .reload-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 10px; border: none;
+    background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem; cursor: pointer;
+  }
   .menu-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 60; }
   .menu-drawer {
     position: fixed; top: 0; left: 0; height: 100%; width: 260px; max-width: 80%;
@@ -54,16 +60,16 @@
   }
   .menu-item:active { background: var(--bg); }
 
-  .add-form {
-    display: flex; gap: 8px; margin-bottom: 20px;
-  }
-  .add-form input {
-    flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 1rem; background: #fff;
-  }
-  .add-form button {
-    padding: 0 18px; border: none; border-radius: 8px; background: var(--accent);
-    color: #fff; font-size: 1rem; cursor: pointer;
+  .open-entry-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-bottom: 20px;
   }
 
   .section-title { font-size: 0.85rem; color: var(--muted); margin: 20px 0 8px; }
@@ -74,11 +80,18 @@
     display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
   li.item.purchased { opacity: 0.5; }
+  li.item.draft-item {
+    background: #fffaf5; border: 1px dashed var(--border); box-shadow: none;
+  }
   li.item .check {
     width: 24px; height: 24px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent);
   }
   li.item .desc { flex: 1; cursor: pointer; word-break: break-all; }
   li.item.purchased .desc { text-decoration: line-through; }
+  li.item .draft-remove {
+    border: none; background: none; color: var(--muted); font-size: 1.1rem;
+    cursor: pointer; padding: 4px;
+  }
   .empty { text-align: center; color: var(--muted); padding: 20px; }
 
   .overlay {
@@ -89,25 +102,26 @@
   .modal-card {
     background: var(--card); border-radius: 16px; padding: 24px; max-width: 340px;
     width: 100%; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin: auto;
-    position: relative;
+    position: relative; text-align: left;
   }
-  .modal-card h2 { margin: 0 0 16px; font-size: 1.2rem; }
+  .modal-card h2 { margin: 0 0 16px; font-size: 1.2rem; text-align: center; }
   .modal-card input {
     width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 1rem; margin-bottom: 14px; text-align: center;
+    font-size: 1rem; margin-bottom: 14px;
   }
   .modal-close {
     position: absolute; top: 10px; left: 10px; width: 32px; height: 32px;
     border: none; background: none; font-size: 1.5rem; line-height: 1;
     color: var(--muted); cursor: pointer; padding: 0;
   }
-  .row { display: flex; gap: 8px; }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
   .row > * { flex: 1; }
   button.submit {
     padding: 12px; border: none; border-radius: 10px; background: var(--text);
-    color: #fff; font-size: 1rem; cursor: pointer;
+    color: #fff; font-size: 1rem; cursor: pointer; margin-top: 0;
   }
   button.danger { background: #c0392b; }
+  .pending-header { font-size: 0.85rem; color: var(--muted); margin: 4px 0 8px; }
 
   .loading-overlay {
     position: fixed; inset: 0; background: rgba(255,255,255,0.6);
@@ -128,6 +142,7 @@
 </head>
 <body>
 <button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<button class="reload-btn" id="reloadBtn" type="button" aria-label="再読み込み">⟳</button>
 <div class="menu-backdrop" id="menuBackdrop" hidden></div>
 <nav class="menu-drawer" id="menuDrawer">
   <div class="menu-user" id="menuUser">-</div>
@@ -141,18 +156,36 @@
 </header>
 
 <div class="container" id="app" hidden>
-  <form class="add-form" id="addForm">
-    <input type="text" id="addInput" placeholder="買うものを入力" autocomplete="off">
-    <button type="submit">追加</button>
-  </form>
+  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ 買うものを追加</button>
 
   <div class="section-title">未購入</div>
-  <ul class="list" id="pendingList">
+  <ul class="list" id="notPurchasedList">
     <li class="empty">読み込み中...</li>
   </ul>
 
   <div class="section-title" id="purchasedTitle" hidden>購入済み（7日で自動的に消えます）</div>
   <ul class="list" id="purchasedList"></ul>
+</div>
+
+<div class="overlay" id="entryOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="entryCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>買うものを追加</h2>
+    <form id="entryForm">
+      <div class="row">
+        <input type="text" id="fDesc" placeholder="買うもの" autocomplete="off" required>
+      </div>
+      <div class="row">
+        <button type="submit" class="submit" style="flex: 1;">追加</button>
+        <button type="button" class="submit" id="sendBtn" style="flex: 1; background: var(--accent);">送信する</button>
+      </div>
+    </form>
+
+    <div class="pending-section" id="draftSection" hidden>
+      <div class="pending-header">未送信 (<span id="draftCount">0</span>件)</div>
+      <ul class="list" id="draftList"></ul>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="editOverlay" hidden>
@@ -179,17 +212,27 @@
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
   const LOGIN_ID_KEY = 'kakeibo_login_id';
+  const DRAFT_KEY = 'shopping_draft';
   const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
 
   let items = [];
+  let draft = loadDraft_();
   let editingId = null;
 
   const appEl = document.getElementById('app');
-  const addForm = document.getElementById('addForm');
-  const addInput = document.getElementById('addInput');
-  const pendingList = document.getElementById('pendingList');
+  const openEntryBtn = document.getElementById('openEntryBtn');
+  const notPurchasedList = document.getElementById('notPurchasedList');
   const purchasedList = document.getElementById('purchasedList');
   const purchasedTitle = document.getElementById('purchasedTitle');
+
+  const entryOverlay = document.getElementById('entryOverlay');
+  const entryForm = document.getElementById('entryForm');
+  const entryCloseBtn = document.getElementById('entryCloseBtn');
+  const fDesc = document.getElementById('fDesc');
+  const sendBtn = document.getElementById('sendBtn');
+  const draftSection = document.getElementById('draftSection');
+  const draftList = document.getElementById('draftList');
+  const draftCount = document.getElementById('draftCount');
 
   const editOverlay = document.getElementById('editOverlay');
   const editForm = document.getElementById('editForm');
@@ -205,6 +248,9 @@
   const menuDrawer = document.getElementById('menuDrawer');
   const menuUser = document.getElementById('menuUser');
   const logoutBtn = document.getElementById('logoutBtn');
+  const reloadBtn = document.getElementById('reloadBtn');
+
+  reloadBtn.addEventListener('click', () => location.reload());
 
   function getPassphrase_() { return localStorage.getItem(STORAGE_KEY) || ''; }
   function clearPassphrase_() {
@@ -225,6 +271,13 @@
     }[c]));
   }
 
+  function loadDraft_() {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveDraft_() {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
   function openMenu_() { menuDrawer.classList.add('open'); menuBackdrop.hidden = false; }
   function closeMenu_() { menuDrawer.classList.remove('open'); menuBackdrop.hidden = true; }
   menuBtn.addEventListener('click', openMenu_);
@@ -238,7 +291,7 @@
     const notPurchased = items.filter(it => !it.purchased);
     const purchased = items.filter(it => it.purchased);
 
-    pendingList.innerHTML = notPurchased.length
+    notPurchasedList.innerHTML = notPurchased.length
       ? notPurchased.map(itemRow_).join('')
       : '<li class="empty">買うものはありません</li>';
 
@@ -253,6 +306,20 @@
       '<span class="desc" data-id="' + it.id + '">' + escapeHtml_(it.desc) + '</span>' +
       '</li>'
     );
+  }
+
+  function renderDraft_() {
+    draftSection.hidden = draft.length === 0;
+    draftCount.textContent = draft.length;
+    draftList.innerHTML = draft.map(d => (
+      '<li class="item draft-item" data-local-id="' + d.localId + '">' +
+      '<span class="desc">' + escapeHtml_(d.desc) + '</span>' +
+      '<button class="draft-remove" data-local-id="' + d.localId + '">✕</button>' +
+      '</li>'
+    )).join('');
+    openEntryBtn.textContent = draft.length
+      ? '＋ 買うものを追加 (' + draft.length + '件未送信)'
+      : '＋ 買うものを追加';
   }
 
   // チェックのON/OFFは体感速度優先で楽観的更新(即座に見た目を変えてから通信)。
@@ -276,7 +343,7 @@
   });
 
   document.addEventListener('click', (e) => {
-    const desc = e.target.closest('.desc');
+    const desc = e.target.closest('#notPurchasedList .desc, #purchasedList .desc');
     if (!desc) return;
     const item = items.find(it => it.id === desc.dataset.id);
     if (!item) return;
@@ -325,18 +392,50 @@
     }
   });
 
-  addForm.addEventListener('submit', async (e) => {
+  openEntryBtn.addEventListener('click', () => {
+    entryOverlay.hidden = false;
+    fDesc.focus();
+  });
+  entryCloseBtn.addEventListener('click', () => {
+    entryOverlay.hidden = true;
+  });
+
+  // 「追加」はローカルの未送信リストに積むだけ。通信は「送信する」でまとめて行う。
+  entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const desc = addInput.value.trim();
+    const desc = fDesc.value.trim();
     if (!desc) return;
+    draft.push({ localId: 'd' + Date.now() + Math.random().toString(36).slice(2, 7), desc });
+    saveDraft_();
+    renderDraft_();
+    fDesc.value = '';
+    fDesc.focus();
+  });
+
+  draftList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.draft-remove');
+    if (!btn) return;
+    draft = draft.filter(d => d.localId !== btn.dataset.localId);
+    saveDraft_();
+    renderDraft_();
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    if (!draft.length) return;
     showLoading_();
     try {
-      const data = await postAction_({ action: 'shoppingAdd', desc });
+      const data = await postAction_({
+        action: 'shoppingAdd',
+        items: draft.map(d => ({ desc: d.desc })),
+      });
       if (data) {
+        draft = [];
+        saveDraft_();
+        renderDraft_();
         items = data.shoppingItems;
         renderList_();
-        addInput.value = '';
-        addInput.focus();
+        entryOverlay.hidden = true;
+        showToast_('送信しました');
       }
     } finally {
       hideLoading_();
@@ -384,6 +483,7 @@
       menuUser.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
     }
     menuBtn.hidden = false;
+    renderDraft_();
 
     let data;
     try {
