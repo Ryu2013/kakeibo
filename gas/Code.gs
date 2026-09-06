@@ -65,6 +65,8 @@ function doPost(e) {
       if (!list.length) {
         return jsonResponse_({ error: '追加するデータがありません' });
       }
+      const sheet = getSheet_();
+      const existing = sheet.getDataRange().getValues();
       const rows = [];
       for (let i = 0; i < list.length; i++) {
         const it = list[i];
@@ -75,9 +77,14 @@ function doPost(e) {
         if (PAYERS.indexOf(it.payer) === -1) {
           return jsonResponse_({ error: (i + 1) + '件目: 支払者が不正です' });
         }
+        const date = it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        const ym = date.slice(0, 7);
+        if (isMonthSettled_(existing, ym)) {
+          return jsonResponse_({ error: (i + 1) + '件目: ' + ym + 'は精算済みのため追加できません。先に精算をキャンセルしてください' });
+        }
         rows.push([
           Utilities.getUuid(),
-          it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+          date,
           it.desc || '',
           amount,
           it.payer,
@@ -85,7 +92,6 @@ function doPost(e) {
           !!it.fullCharge,
         ]);
       }
-      const sheet = getSheet_();
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
       const items = readItems_();
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
@@ -96,6 +102,10 @@ function doPost(e) {
       const data = sheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === body.id) {
+          const ym = formatDate_(data[i][1]).slice(0, 7);
+          if (isMonthSettled_(data, ym)) {
+            return jsonResponse_({ error: 'この月は精算済みのため削除できません。先に精算をキャンセルしてください' });
+          }
           sheet.deleteRow(i + 1);
           break;
         }
@@ -117,8 +127,14 @@ function doPost(e) {
       let found = false;
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === body.id) {
+          const oldYm = formatDate_(data[i][1]).slice(0, 7);
+          const newDate = body.date || data[i][1];
+          const newYm = formatDate_(newDate).slice(0, 7);
+          if (isMonthSettled_(data, oldYm) || isMonthSettled_(data, newYm)) {
+            return jsonResponse_({ error: 'この月は精算済みのため編集できません。先に精算をキャンセルしてください' });
+          }
           sheet.getRange(i + 1, 2, 1, 6).setValues([[
-            body.date || data[i][1],
+            newDate,
             body.desc || '',
             amount,
             body.payer,
@@ -131,6 +147,23 @@ function doPost(e) {
       }
       if (!found) {
         return jsonResponse_({ error: '対象の記録が見つかりません' });
+      }
+      const items = readItems_();
+      return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
+    }
+
+    if (body.action === 'cancelSettleMonth') {
+      const yearMonth = String(body.yearMonth || '');
+      if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        return jsonResponse_({ error: '年月が不正です' });
+      }
+      const sheet = getSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const rowDate = formatDate_(data[i][1]);
+        if (rowDate.indexOf(yearMonth) === 0) {
+          sheet.getRange(i + 1, 6).setValue(false);
+        }
       }
       const items = readItems_();
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
@@ -328,6 +361,8 @@ function doPost(e) {
       if (!list.length) {
         return jsonResponse_({ error: '追加するデータがありません' });
       }
+      const sheet = getChoreLogSheet_();
+      const existing = sheet.getDataRange().getValues();
       const rows = [];
       for (let i = 0; i < list.length; i++) {
         const it = list[i];
@@ -339,16 +374,20 @@ function doPost(e) {
         if (PAYERS.indexOf(it.payer) === -1) {
           return jsonResponse_({ error: (i + 1) + '件目: 実施者が不正です' });
         }
+        const date = it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        const ym = date.slice(0, 7);
+        if (isMonthSettled_(existing, ym)) {
+          return jsonResponse_({ error: (i + 1) + '件目: ' + ym + 'は締め済みのため追加できません。先に精算をキャンセルしてください' });
+        }
         rows.push([
           Utilities.getUuid(),
-          it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+          date,
           name,
           points,
           it.payer,
           false,
         ]);
       }
-      const sheet = getChoreLogSheet_();
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
       return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
     }
@@ -367,8 +406,14 @@ function doPost(e) {
       let found = false;
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === body.id) {
+          const oldYm = formatDate_(data[i][1]).slice(0, 7);
+          const newDate = body.date || data[i][1];
+          const newYm = formatDate_(newDate).slice(0, 7);
+          if (isMonthSettled_(data, oldYm) || isMonthSettled_(data, newYm)) {
+            return jsonResponse_({ error: 'この月は締め済みのため編集できません。先に精算をキャンセルしてください' });
+          }
           sheet.getRange(i + 1, 2, 1, 4).setValues([[
-            body.date || data[i][1],
+            newDate,
             name,
             points,
             body.payer,
@@ -388,8 +433,37 @@ function doPost(e) {
       const data = sheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === body.id) {
+          const ym = formatDate_(data[i][1]).slice(0, 7);
+          if (isMonthSettled_(data, ym)) {
+            return jsonResponse_({ error: 'この月は締め済みのため削除できません。先に精算をキャンセルしてください' });
+          }
           sheet.deleteRow(i + 1);
           break;
+        }
+      }
+      return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
+    }
+
+    if (body.action === 'choreCancelSettleMonth') {
+      const yearMonth = String(body.yearMonth || '');
+      if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        return jsonResponse_({ error: '年月が不正です' });
+      }
+      const sheet = getChoreLogSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const rowDate = formatDate_(data[i][1]);
+        if (rowDate.indexOf(yearMonth) === 0) {
+          sheet.getRange(i + 1, 6).setValue(false);
+        }
+      }
+      // 対応する割引レコードを支出シートから削除する
+      const desc = '家事ポイント精算（' + formatYearMonthLabel_(yearMonth) + '）';
+      const expenseSheet = getSheet_();
+      const expData = expenseSheet.getDataRange().getValues();
+      for (let i = expData.length - 1; i >= 1; i--) {
+        if (expData[i][2] === desc) {
+          expenseSheet.deleteRow(i + 1);
         }
       }
       return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
@@ -610,6 +684,17 @@ function getChoreLogSheet_() {
   return sheet;
 }
 
+// data(getValues()の生配列)の中に、指定した年月(YYYY-MM)に属する精算済み行が
+// 1件でもあればtrue。支出シート・家事ログシートは列2=日付,列6=精算済みで共通。
+function isMonthSettled_(data, yearMonth) {
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = formatDate_(data[i][1]);
+    const settled = data[i][5] === true || data[i][5] === 'TRUE';
+    if (settled && rowDate.indexOf(yearMonth) === 0) return true;
+  }
+  return false;
+}
+
 function formatYearMonthLabel_(ym) {
   const parts = ym.split('-');
   return parts[0] + '年' + Number(parts[1]) + '月分';
@@ -755,5 +840,49 @@ function installDailyTodoCleanupTrigger() {
     .timeBased()
     .everyDays(1)
     .atHour(4)
+    .create();
+}
+
+// 半年(6ヶ月)より前の「締め済み」家事ログを削除する。未締めの記録は
+// 誤って消さないよう残す。
+const CHORE_LOG_RETENTION_MONTHS = 6;
+
+function cleanupOldChoreLogs() {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - CHORE_LOG_RETENTION_MONTHS);
+  const cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getChoreLogSheet_();
+    const data = sheet.getDataRange().getValues();
+    let deleted = 0;
+    for (let i = data.length - 1; i >= 1; i--) {
+      const rowDate = formatDate_(data[i][1]);
+      const settled = data[i][5] === true || data[i][5] === 'TRUE';
+      if (rowDate < cutoffStr && settled) {
+        sheet.deleteRow(i + 1);
+        deleted++;
+      }
+    }
+    Logger.log('cleanupOldChoreLogs: deleted ' + deleted + ' rows older than ' + cutoffStr);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Apps Scriptエディタでこの関数を選んで一度だけ実行(▶)すると、
+// 毎月1日の深夜にcleanupOldChoreLogsが自動実行されるようになる。
+function installMonthlyChoreLogCleanupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'cleanupOldChoreLogs') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('cleanupOldChoreLogs')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(3)
     .create();
 }

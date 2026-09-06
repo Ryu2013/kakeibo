@@ -6,6 +6,7 @@
 <title>家事管理</title>
 <link rel="icon" href="icon-192.png" type="image/png">
 <meta name="theme-color" content="#f5f3ef">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #f5f3ef;
@@ -71,11 +72,10 @@
   .month-nav .month-label { font-weight: bold; font-size: 1.05rem; }
 
   .balance-card {
-    background: var(--card); border-radius: 16px; padding: 20px; text-align: center;
+    background: var(--card); border-radius: 16px; padding: 16px; text-align: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;
   }
-  .balance-card .amount { font-size: 1.5rem; font-weight: bold; margin: 6px 0; }
-  .balance-card .label { color: var(--muted); font-size: 0.85rem; }
+  .balance-card .label { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
 
   .settle-bar { margin: 14px 0; }
   .settle-bar button {
@@ -85,6 +85,15 @@
   .settled-banner {
     margin: 14px 0; text-align: center; padding: 12px; border-radius: 10px;
     background: #eef7ee; color: #2f7a3d; font-size: 0.9rem;
+  }
+  .cancel-settle-btn {
+    display: block; margin: 8px auto 0; padding: 6px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: #fff; color: var(--muted); font-size: 0.8rem; cursor: pointer;
+  }
+
+  .open-entry-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--accent);
+    color: #fff; font-size: 1rem; cursor: pointer; margin-bottom: 20px;
   }
 
   .section-title { font-size: 0.95rem; margin: 22px 0 10px; font-weight: bold; }
@@ -99,7 +108,7 @@
 
   .manage-link {
     display: block; text-align: center; font-size: 0.85rem; color: var(--accent);
-    text-decoration: none; margin: 6px 0 4px; background: none; border: none; cursor: pointer;
+    text-decoration: none; margin: 10px 0 4px; background: none; border: none; cursor: pointer;
     width: 100%; font-family: inherit;
   }
 
@@ -114,25 +123,37 @@
   .toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .toggle-btn.active.aoi { background: var(--aoi); border-color: var(--aoi); }
 
+  .pending-section { margin-top: 16px; }
+  .pending-header { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+
+  .split-columns { display: flex; gap: 8px; }
+  .split-columns .col { flex: 1; min-width: 0; }
+  .col-title {
+    font-size: 0.85rem; font-weight: bold; text-align: center; margin-bottom: 8px;
+  }
+  .col-title.aoi { color: var(--aoi); }
+  .col-title.ryu { color: var(--ryu); }
+
   ul.list { list-style: none; padding: 0; margin: 0; }
   li.item {
-    background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
-    display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    background: var(--card); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     cursor: pointer;
   }
   li.item:active { background: #eee; }
   li.item.is-settled { opacity: 0.55; }
-  li.item .tag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .tag.aoi { background: var(--aoi); }
-  .tag.ryu { background: var(--ryu); }
+  li.item.draft-item { background: #fffaf5; border: 1px dashed var(--border); box-shadow: none; }
   li.item .main { flex: 1; min-width: 0; }
-  li.item .desc { font-weight: 500; }
-  li.item .meta { font-size: 0.78rem; color: var(--muted); }
-  li.item .amount { font-weight: bold; white-space: nowrap; }
-  .empty { text-align: center; color: var(--muted); padding: 20px; }
+  li.item .desc { font-weight: 500; font-size: 0.9rem; }
+  li.item .meta { font-size: 0.72rem; color: var(--muted); }
+  li.item .amount { font-weight: bold; white-space: nowrap; font-size: 0.9rem; }
+  li.item .draft-remove {
+    border: none; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 4px;
+  }
+  .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
   .tag-badge {
-    display: inline-block; font-size: 0.7rem; padding: 2px 6px; border-radius: 6px;
-    background: #eee; color: #666; margin-left: 6px;
+    display: inline-block; font-size: 0.65rem; padding: 2px 5px; border-radius: 6px;
+    background: #eee; color: #666; margin-left: 4px;
   }
 
   .overlay {
@@ -197,23 +218,56 @@
     <button class="nav-btn" id="nextMonth" type="button">›</button>
   </div>
 
-  <div class="balance-card" id="pointsCard">
-    <div class="label">読み込み中...</div>
+  <div class="balance-card">
+    <div class="label">今月のポイント</div>
+    <canvas id="pointsChart" height="120"></canvas>
   </div>
 
   <div class="settle-bar" id="settleBar" hidden>
     <button id="settleBtn" type="button">この月を締める</button>
   </div>
-  <div class="settled-banner" id="settledBanner" hidden>この月は締め済みです</div>
+  <div class="settled-banner" id="settledBanner" hidden>
+    この月は締め済みです
+    <button class="cancel-settle-btn" id="cancelSettleBtn" type="button">精算をキャンセル</button>
+  </div>
 
-  <div class="section-title">家事を行った</div>
-  <div class="chore-grid" id="choreGrid"></div>
-  <button class="manage-link" id="manageChoresBtn" type="button">家事一覧を編集</button>
+  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ 記録を追加</button>
 
   <div class="section-title">この月の記録</div>
-  <ul class="list" id="logList">
-    <li class="empty">読み込み中...</li>
-  </ul>
+  <div class="split-columns">
+    <div class="col">
+      <div class="col-title aoi">碧</div>
+      <ul class="list" id="logListAoi"><li class="empty">読み込み中...</li></ul>
+    </div>
+    <div class="col">
+      <div class="col-title ryu">竜</div>
+      <ul class="list" id="logListRyu"><li class="empty">読み込み中...</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="entryOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="entryCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>記録を追加</h2>
+    <div class="row">
+      <input type="date" id="fDate">
+    </div>
+    <div class="row">
+      <div class="toggle-group" id="entryPayerGroup">
+        <div class="toggle-btn aoi" data-value="碧">碧</div>
+        <div class="toggle-btn" data-value="竜">竜</div>
+      </div>
+    </div>
+    <div class="chore-grid" id="choreGrid"></div>
+    <button class="manage-link" id="manageChoresBtn" type="button">家事一覧を編集</button>
+
+    <div class="pending-section" id="draftSection" hidden>
+      <div class="pending-header">未送信 (<span id="draftCount">0</span>件)</div>
+      <ul class="list" id="draftList"></ul>
+    </div>
+    <button class="submit" id="sendBtn" type="button" style="width: 100%; background: var(--accent);">送信する</button>
+  </div>
 </div>
 
 <div class="overlay" id="defOverlay" hidden>
@@ -296,26 +350,38 @@
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
   const LOGIN_ID_KEY = 'kakeibo_login_id';
+  const DRAFT_KEY = 'chores_draft';
   const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
 
-  const state = { loginId: 'aoi' };
+  const state = { loginId: 'aoi', entryPayer: '碧' };
   let choreDefs = [];
   let choreLogs = [];
+  let draft = loadDraft_();
   let currentMonth = todayMonth_();
   let editingDefId = null;
   let editingLogId = null;
+  let pointsChartInstance = null;
 
   const appEl = document.getElementById('app');
   const monthLabel = document.getElementById('monthLabel');
   const prevMonthBtn = document.getElementById('prevMonth');
   const nextMonthBtn = document.getElementById('nextMonth');
-  const pointsCard = document.getElementById('pointsCard');
   const settleBar = document.getElementById('settleBar');
   const settleBtn = document.getElementById('settleBtn');
   const settledBanner = document.getElementById('settledBanner');
+  const logListAoi = document.getElementById('logListAoi');
+  const logListRyu = document.getElementById('logListRyu');
+
+  const openEntryBtn = document.getElementById('openEntryBtn');
+  const entryOverlay = document.getElementById('entryOverlay');
+  const entryCloseBtn = document.getElementById('entryCloseBtn');
+  const fDate = document.getElementById('fDate');
   const choreGrid = document.getElementById('choreGrid');
   const manageChoresBtn = document.getElementById('manageChoresBtn');
-  const logList = document.getElementById('logList');
+  const draftSection = document.getElementById('draftSection');
+  const draftList = document.getElementById('draftList');
+  const draftCount = document.getElementById('draftCount');
+  const sendBtn = document.getElementById('sendBtn');
 
   const defOverlay = document.getElementById('defOverlay');
   const defCloseBtn = document.getElementById('defCloseBtn');
@@ -356,10 +422,13 @@
   const reloadBtn = document.getElementById('reloadBtn');
   reloadBtn.addEventListener('click', () => location.reload());
 
+  fDate.value = new Date().toISOString().slice(0, 10);
+
   function todayMonth_() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   }
+  function todayDate_() { return new Date().toISOString().slice(0, 10); }
   function addMonths_(ym, delta) {
     const parts = ym.split('-').map(Number);
     const d = new Date(parts[0], parts[1] - 1 + delta, 1);
@@ -409,6 +478,13 @@
     return LOGIN_ID_TO_PAYER[state.loginId] || '碧';
   }
 
+  function loadDraft_() {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveDraft_() {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
   function openMenu_() { menuDrawer.classList.add('open'); menuBackdrop.hidden = false; }
   function closeMenu_() { menuDrawer.classList.remove('open'); menuBackdrop.hidden = true; }
   menuBtn.addEventListener('click', openMenu_);
@@ -428,11 +504,50 @@
       return;
     }
     choreGrid.innerHTML = choreDefs.map(d => (
-      '<button class="chore-btn" data-id="' + d.id + '">' +
+      '<button class="chore-btn" type="button" data-id="' + d.id + '">' +
       escapeHtml_(d.name) +
       '<span class="pt">' + d.points + 'pt</span>' +
       '</button>'
     )).join('');
+  }
+
+  function renderPointsChart_(aoiPoints, ryuPoints) {
+    const ctx = document.getElementById('pointsChart');
+    if (pointsChartInstance) pointsChartInstance.destroy();
+    pointsChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['碧', '竜'],
+        datasets: [{
+          data: [aoiPoints, ryuPoints],
+          backgroundColor: ['#6ba3c9', '#d97757'],
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+  }
+
+  function renderLogColumn_(el, logs) {
+    if (!logs.length) {
+      el.innerHTML = '<li class="empty">記録なし</li>';
+      return;
+    }
+    el.innerHTML = logs.map(l => {
+      const badge = l.settled ? '<span class="tag-badge">締め済</span>' : '';
+      return (
+        '<li class="item' + (l.settled ? ' is-settled' : '') + '" data-id="' + l.id + '">' +
+        '<div class="main">' +
+          '<div class="desc">' + escapeHtml_(l.name) + badge + '</div>' +
+          '<div class="meta">' + l.date + '</div>' +
+        '</div>' +
+        '<div class="amount">' + l.points + 'pt</div>' +
+        '</li>'
+      );
+    }).join('');
   }
 
   function renderMonth_() {
@@ -443,9 +558,7 @@
     logs.forEach(l => {
       if (l.payer === '碧') aoiPoints += l.points; else if (l.payer === '竜') ryuPoints += l.points;
     });
-    pointsCard.innerHTML =
-      '<div class="label">今月のポイント</div>' +
-      '<div class="amount">碧 ' + aoiPoints + 'pt ・ 竜 ' + ryuPoints + 'pt</div>';
+    renderPointsChart_(aoiPoints, ryuPoints);
 
     if (!logs.length) {
       settleBar.hidden = true;
@@ -456,53 +569,12 @@
       settledBanner.hidden = !allSettled;
     }
 
-    if (!logs.length) {
-      logList.innerHTML = '<li class="empty">この月の記録はありません</li>';
-    } else {
-      logList.innerHTML = logs.map(l => {
-        const tagClass = l.payer === '碧' ? 'aoi' : 'ryu';
-        const badge = l.settled ? '<span class="tag-badge">締め済</span>' : '';
-        return (
-          '<li class="item' + (l.settled ? ' is-settled' : '') + '" data-id="' + l.id + '">' +
-          '<span class="tag ' + tagClass + '"></span>' +
-          '<div class="main">' +
-            '<div class="desc">' + escapeHtml_(l.name) + badge + '</div>' +
-            '<div class="meta">' + l.date + ' ・ ' + l.payer + '</div>' +
-          '</div>' +
-          '<div class="amount">' + l.points + 'pt</div>' +
-          '</li>'
-        );
-      }).join('');
-    }
+    renderLogColumn_(logListAoi, logs.filter(l => l.payer === '碧'));
+    renderLogColumn_(logListRyu, logs.filter(l => l.payer === '竜'));
   }
 
   prevMonthBtn.addEventListener('click', () => { currentMonth = addMonths_(currentMonth, -1); renderMonth_(); });
   nextMonthBtn.addEventListener('click', () => { currentMonth = addMonths_(currentMonth, 1); renderMonth_(); });
-
-  // 家事ボタンをタップ → 今日の日付・ログイン中の人ですぐ記録する
-  choreGrid.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.chore-btn');
-    if (!btn) return;
-    const def = choreDefs.find(d => d.id === btn.dataset.id);
-    if (!def) return;
-    showLoading_();
-    try {
-      const data = await postAction_({
-        action: 'choreLogAdd',
-        items: [{ name: def.name, points: def.points, payer: currentPayer_(), date: todayDate_() }],
-      });
-      if (data) {
-        choreLogs = data.choreLogs;
-        currentMonth = todayMonth_();
-        renderMonth_();
-        showToast_(def.name + 'を記録しました (+' + def.points + 'pt)');
-      }
-    } finally {
-      hideLoading_();
-    }
-  });
-
-  function todayDate_() { return new Date().toISOString().slice(0, 10); }
 
   settleBtn.addEventListener('click', async () => {
     const ok = await askConfirm_(formatMonthLabel_(currentMonth) + 'を締めますか？（ポイント差に応じて家計簿に割引が追加されます）');
@@ -519,6 +591,109 @@
         } else {
           showToast_('ポイント差はありませんでした');
         }
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  document.getElementById('cancelSettleBtn').addEventListener('click', async () => {
+    const ok = await askConfirm_(formatMonthLabel_(currentMonth) + 'の精算をキャンセルしますか？（家計簿に追加された割引も削除されます）');
+    if (!ok) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreCancelSettleMonth', yearMonth: currentMonth });
+      if (data) {
+        choreLogs = data.choreLogs;
+        renderMonth_();
+        showToast_('精算をキャンセルしました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  // --- 新規登録ダイアログ ---
+  openEntryBtn.addEventListener('click', () => {
+    state.entryPayer = currentPayer_();
+    renderEntryPayerToggle_();
+    entryOverlay.hidden = false;
+  });
+  entryCloseBtn.addEventListener('click', () => { entryOverlay.hidden = true; });
+
+  document.getElementById('entryPayerGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    state.entryPayer = btn.dataset.value;
+    renderEntryPayerToggle_();
+  });
+  function renderEntryPayerToggle_() {
+    document.querySelectorAll('#entryPayerGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === state.entryPayer;
+      b.classList.toggle('active', active);
+      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+    });
+  }
+
+  // 家事ボタンをタップ → その場で通信せず未送信リストに積む
+  choreGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chore-btn');
+    if (!btn) return;
+    const def = choreDefs.find(d => d.id === btn.dataset.id);
+    if (!def) return;
+    draft.push({
+      localId: 'c' + Date.now() + Math.random().toString(36).slice(2, 7),
+      date: fDate.value || todayDate_(),
+      name: def.name,
+      points: def.points,
+      payer: state.entryPayer,
+    });
+    saveDraft_();
+    renderDraft_();
+  });
+
+  function renderDraft_() {
+    draftSection.hidden = draft.length === 0;
+    draftCount.textContent = draft.length;
+    draftList.innerHTML = draft.map(d => (
+      '<li class="item draft-item" data-local-id="' + d.localId + '">' +
+      '<div class="main">' +
+        '<div class="desc">' + escapeHtml_(d.name) + ' (' + d.points + 'pt)</div>' +
+        '<div class="meta">' + d.date + ' ・ ' + d.payer + '</div>' +
+      '</div>' +
+      '<button class="draft-remove" data-local-id="' + d.localId + '">✕</button>' +
+      '</li>'
+    )).join('');
+    openEntryBtn.textContent = draft.length
+      ? '＋ 記録を追加 (' + draft.length + '件未送信)'
+      : '＋ 記録を追加';
+  }
+
+  draftList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.draft-remove');
+    if (!btn) return;
+    draft = draft.filter(d => d.localId !== btn.dataset.localId);
+    saveDraft_();
+    renderDraft_();
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    if (!draft.length) return;
+    showLoading_();
+    try {
+      const data = await postAction_({
+        action: 'choreLogAdd',
+        items: draft.map(d => ({ date: d.date, name: d.name, points: d.points, payer: d.payer })),
+      });
+      if (data) {
+        currentMonth = draft[draft.length - 1].date.slice(0, 7);
+        draft = [];
+        saveDraft_();
+        renderDraft_();
+        choreLogs = data.choreLogs;
+        renderMonth_();
+        entryOverlay.hidden = true;
+        showToast_('送信しました');
       }
     } finally {
       hideLoading_();
@@ -625,19 +800,23 @@
   });
 
   // --- 記録の編集ダイアログ ---
-  logList.addEventListener('click', (e) => {
-    const li = e.target.closest('li.item');
-    if (!li || !li.dataset.id) return;
-    const log = choreLogs.find(l => l.id === li.dataset.id);
-    if (!log) return;
-    editingLogId = log.id;
-    leDate.value = log.date;
-    lePoints.value = log.points;
-    leName.value = log.name;
-    logPayer = log.payer;
-    renderLogPayerToggle_();
-    logEditOverlay.hidden = false;
-  });
+  function bindLogColumnClicks_(el) {
+    el.addEventListener('click', (e) => {
+      const li = e.target.closest('li.item');
+      if (!li || !li.dataset.id) return;
+      const log = choreLogs.find(l => l.id === li.dataset.id);
+      if (!log) return;
+      editingLogId = log.id;
+      leDate.value = log.date;
+      lePoints.value = log.points;
+      leName.value = log.name;
+      logPayer = log.payer;
+      renderLogPayerToggle_();
+      logEditOverlay.hidden = false;
+    });
+  }
+  bindLogColumnClicks_(logListAoi);
+  bindLogColumnClicks_(logListRyu);
 
   logEditCloseBtn.addEventListener('click', () => {
     logEditOverlay.hidden = true;
@@ -744,6 +923,7 @@
       menuUser.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
     }
     menuBtn.hidden = false;
+    renderDraft_();
 
     let data;
     try {

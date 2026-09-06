@@ -320,6 +320,17 @@
     color: #2f7a3d;
     font-size: 0.9rem;
   }
+  .cancel-settle-btn {
+    display: block;
+    margin: 8px auto 0;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
 
   .overlay {
     position: fixed;
@@ -422,7 +433,10 @@
   <div class="settle-bar" id="settleBar" hidden>
     <button class="submit" id="settleBtn" type="button">この月を精算済みにする</button>
   </div>
-  <div class="settled-banner" id="settledBanner" hidden>この月は精算済みです</div>
+  <div class="settled-banner" id="settledBanner" hidden>
+    この月は精算済みです
+    <button class="cancel-settle-btn" id="cancelSettleBtn" type="button">精算をキャンセル</button>
+  </div>
 </div>
 
 <div class="overlay" id="entryOverlay" hidden>
@@ -803,6 +817,22 @@
         allItems = data.items;
         renderMonth_();
         showToast_('精算済みにしました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  document.getElementById('cancelSettleBtn').addEventListener('click', async () => {
+    const ok = await askConfirm_(formatMonthLabel_(currentMonth) + '分の精算をキャンセルしますか？');
+    if (!ok) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'cancelSettleMonth', yearMonth: currentMonth });
+      if (data) {
+        allItems = data.items;
+        renderMonth_();
+        showToast_('精算をキャンセルしました');
       }
     } finally {
       hideLoading_();
