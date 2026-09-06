@@ -6,11 +6,15 @@
  * 支出シート列: id, 日付, 内容, 金額, 支払者, 精算済み, 全額請求
  * 買い物シート列: id, 内容, 購入済み, 購入日時
  * やることシート列: id, 内容, 完了, 完了日時
+ * 家事マスタシート列: id, 家事名, ポイント
+ * 家事ログシート列: id, 日付, 家事名, ポイント, 実施者, 精算済み
  */
 
 const SHEET_NAME = '支出';
 const SHOPPING_SHEET_NAME = '買い物';
 const TODO_SHEET_NAME = 'やること';
+const CHORE_MASTER_SHEET_NAME = '家事マスタ';
+const CHORE_LOG_SHEET_NAME = '家事ログ';
 const PASSPHRASE = 'bebichan';
 const PAYERS = ['碧', '竜'];
 
@@ -26,6 +30,9 @@ function doGet(e) {
   }
   if (e.parameter.list === 'todo') {
     return jsonResponse_({ items: readTodoItems_() });
+  }
+  if (e.parameter.list === 'chores') {
+    return jsonResponse_({ choreDefs: readChoreDefs_(), choreLogs: readChoreLogs_() });
   }
   const items = readItems_();
   return jsonResponse_({ items: items, balance: calcBalance_(items) });
@@ -257,6 +264,185 @@ function doPost(e) {
       return jsonResponse_({ ok: true, todoItems: readTodoItems_() });
     }
 
+    if (body.action === 'choreDefAdd') {
+      const list = Array.isArray(body.items) ? body.items : [];
+      if (!list.length) {
+        return jsonResponse_({ error: '追加するデータがありません' });
+      }
+      const rows = [];
+      for (let i = 0; i < list.length; i++) {
+        const name = String(list[i].name || '').trim();
+        const points = Number(list[i].points);
+        if (!name) {
+          return jsonResponse_({ error: (i + 1) + '件目: 家事名を入力してください' });
+        }
+        if (!points || points <= 0) {
+          return jsonResponse_({ error: (i + 1) + '件目: ポイントが不正です' });
+        }
+        rows.push([Utilities.getUuid(), name, points]);
+      }
+      const sheet = getChoreMasterSheet_();
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+      return jsonResponse_({ ok: true, choreDefs: readChoreDefs_() });
+    }
+
+    if (body.action === 'choreDefUpdate') {
+      const name = String(body.name || '').trim();
+      const points = Number(body.points);
+      if (!name) {
+        return jsonResponse_({ error: '家事名を入力してください' });
+      }
+      if (!points || points <= 0) {
+        return jsonResponse_({ error: 'ポイントが不正です' });
+      }
+      const sheet = getChoreMasterSheet_();
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.getRange(i + 1, 2, 1, 2).setValues([[name, points]]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return jsonResponse_({ error: '対象が見つかりません' });
+      }
+      return jsonResponse_({ ok: true, choreDefs: readChoreDefs_() });
+    }
+
+    if (body.action === 'choreDefDelete') {
+      const sheet = getChoreMasterSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.deleteRow(i + 1);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, choreDefs: readChoreDefs_() });
+    }
+
+    if (body.action === 'choreLogAdd') {
+      const list = Array.isArray(body.items) ? body.items : [];
+      if (!list.length) {
+        return jsonResponse_({ error: '追加するデータがありません' });
+      }
+      const rows = [];
+      for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        const name = String(it.name || '').trim();
+        const points = Number(it.points);
+        if (!name || !points || points <= 0) {
+          return jsonResponse_({ error: (i + 1) + '件目のデータが不正です' });
+        }
+        if (PAYERS.indexOf(it.payer) === -1) {
+          return jsonResponse_({ error: (i + 1) + '件目: 実施者が不正です' });
+        }
+        rows.push([
+          Utilities.getUuid(),
+          it.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+          name,
+          points,
+          it.payer,
+          false,
+        ]);
+      }
+      const sheet = getChoreLogSheet_();
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+      return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
+    }
+
+    if (body.action === 'choreLogUpdate') {
+      const name = String(body.name || '').trim();
+      const points = Number(body.points);
+      if (!name || !points || points <= 0) {
+        return jsonResponse_({ error: 'データが不正です' });
+      }
+      if (PAYERS.indexOf(body.payer) === -1) {
+        return jsonResponse_({ error: '実施者が不正です' });
+      }
+      const sheet = getChoreLogSheet_();
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.getRange(i + 1, 2, 1, 4).setValues([[
+            body.date || data[i][1],
+            name,
+            points,
+            body.payer,
+          ]]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return jsonResponse_({ error: '対象が見つかりません' });
+      }
+      return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
+    }
+
+    if (body.action === 'choreLogDelete') {
+      const sheet = getChoreLogSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.deleteRow(i + 1);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, choreLogs: readChoreLogs_() });
+    }
+
+    if (body.action === 'choreSettleMonth') {
+      const yearMonth = String(body.yearMonth || '');
+      if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        return jsonResponse_({ error: '年月が不正です' });
+      }
+      const sheet = getChoreLogSheet_();
+      const data = sheet.getDataRange().getValues();
+      let aoiPoints = 0;
+      let ryuPoints = 0;
+      const rowsToSettle = [];
+      for (let i = 1; i < data.length; i++) {
+        const rowDate = formatDate_(data[i][1]);
+        const settled = data[i][5] === true || data[i][5] === 'TRUE';
+        if (rowDate.indexOf(yearMonth) === 0 && !settled) {
+          const points = Number(data[i][3]);
+          const payer = data[i][4];
+          if (payer === '碧') aoiPoints += points;
+          else if (payer === '竜') ryuPoints += points;
+          rowsToSettle.push(i + 1);
+        }
+      }
+      const diff = Math.abs(aoiPoints - ryuPoints);
+      let winner = null;
+      let discount = 0;
+      if (diff > 0) {
+        winner = aoiPoints > ryuPoints ? '碧' : '竜';
+        discount = diff * 10;
+        const expenseSheet = getSheet_();
+        expenseSheet.appendRow([
+          Utilities.getUuid(),
+          Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+          '家事ポイント精算（' + formatYearMonthLabel_(yearMonth) + '）',
+          discount,
+          winner,
+          false,
+          true,
+        ]);
+      }
+      rowsToSettle.forEach(function (rowNum) {
+        sheet.getRange(rowNum, 6).setValue(true);
+      });
+      return jsonResponse_({
+        ok: true,
+        choreLogs: readChoreLogs_(),
+        result: { aoiPoints: aoiPoints, ryuPoints: ryuPoints, diff: diff, winner: winner, discount: discount },
+      });
+    }
+
     if (body.action === 'settleMonth') {
       const yearMonth = String(body.yearMonth || '');
       if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
@@ -372,6 +558,61 @@ function getTodoSheet_() {
     sheet.appendRow(['id', '内容', '完了', '完了日時']);
   }
   return sheet;
+}
+
+function readChoreDefs_() {
+  const sheet = getChoreMasterSheet_();
+  const rows = sheet.getDataRange().getValues();
+  rows.shift(); // ヘッダー除去
+  return rows
+    .filter(function (r) { return r[0]; })
+    .map(function (r) {
+      return { id: r[0], name: r[1], points: Number(r[2]) };
+    });
+}
+
+function getChoreMasterSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CHORE_MASTER_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CHORE_MASTER_SHEET_NAME);
+    sheet.appendRow(['id', '家事名', 'ポイント']);
+  }
+  return sheet;
+}
+
+function readChoreLogs_() {
+  const sheet = getChoreLogSheet_();
+  const rows = sheet.getDataRange().getValues();
+  rows.shift(); // ヘッダー除去
+  return rows
+    .filter(function (r) { return r[0]; })
+    .map(function (r) {
+      return {
+        id: r[0],
+        date: formatDate_(r[1]),
+        name: r[2],
+        points: Number(r[3]),
+        payer: r[4],
+        settled: r[5] === true || r[5] === 'TRUE',
+      };
+    })
+    .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+}
+
+function getChoreLogSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CHORE_LOG_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CHORE_LOG_SHEET_NAME);
+    sheet.appendRow(['id', '日付', '家事名', 'ポイント', '実施者', '精算済み']);
+  }
+  return sheet;
+}
+
+function formatYearMonthLabel_(ym) {
+  const parts = ym.split('-');
+  return parts[0] + '年' + Number(parts[1]) + '月分';
 }
 
 function formatDate_(d) {

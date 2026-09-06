@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家事管理</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<meta name="theme-color" content="#f5f3ef">
+<style>
+  :root {
+    --bg: #f5f3ef;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #888;
+    --accent: #d97757;
+    --aoi: #6ba3c9;
+    --ryu: #d97757;
+    --border: #e5e0d8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header { padding: 20px 16px 4px; text-align: center; }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  [hidden] { display: none !important; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  .hamburger-btn {
+    position: fixed; top: 14px; left: 14px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 10px; border: none;
+    background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem; cursor: pointer;
+  }
+  .reload-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 10px; border: none;
+    background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem; cursor: pointer;
+  }
+  .menu-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 60; }
+  .menu-drawer {
+    position: fixed; top: 0; left: 0; height: 100%; width: 260px; max-width: 80%;
+    background: var(--card); z-index: 70; box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    transform: translateX(-100%); transition: transform 0.25s ease;
+    padding: 60px 12px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .menu-drawer.open { transform: translateX(0); }
+  .menu-user {
+    font-weight: bold; padding: 10px 10px 14px; color: var(--text);
+    border-bottom: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .menu-item {
+    display: block; width: 100%; text-align: left; padding: 12px 10px;
+    border: none; background: none; font-size: 0.95rem; color: var(--text);
+    text-decoration: none; border-radius: 8px; cursor: pointer; font-family: inherit;
+  }
+  .menu-item:active { background: var(--bg); }
+
+  .month-nav {
+    display: flex; align-items: center; justify-content: space-between; margin: 16px 0 14px;
+  }
+  .month-nav .nav-btn {
+    border: none; background: var(--card); width: 36px; height: 36px; border-radius: 50%;
+    font-size: 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer;
+  }
+  .month-nav .month-label { font-weight: bold; font-size: 1.05rem; }
+
+  .balance-card {
+    background: var(--card); border-radius: 16px; padding: 20px; text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;
+  }
+  .balance-card .amount { font-size: 1.5rem; font-weight: bold; margin: 6px 0; }
+  .balance-card .label { color: var(--muted); font-size: 0.85rem; }
+
+  .settle-bar { margin: 14px 0; }
+  .settle-bar button {
+    width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px;
+    background: #fff; color: var(--text); font-size: 1rem; cursor: pointer;
+  }
+  .settled-banner {
+    margin: 14px 0; text-align: center; padding: 12px; border-radius: 10px;
+    background: #eef7ee; color: #2f7a3d; font-size: 0.9rem;
+  }
+
+  .section-title { font-size: 0.95rem; margin: 22px 0 10px; font-weight: bold; }
+
+  .chore-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chore-btn {
+    padding: 12px 14px; border: none; border-radius: 10px; background: var(--card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); font-size: 0.95rem; color: var(--text);
+    cursor: pointer; text-align: left;
+  }
+  .chore-btn .pt { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .manage-link {
+    display: block; text-align: center; font-size: 0.85rem; color: var(--accent);
+    text-decoration: none; margin: 6px 0 4px; background: none; border: none; cursor: pointer;
+    width: 100%; font-family: inherit;
+  }
+
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .row > * { flex: 1; }
+  input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: #fff; }
+  .toggle-group { display: flex; gap: 8px; }
+  .toggle-btn {
+    flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff;
+    text-align: center; cursor: pointer; user-select: none; font-size: 0.95rem;
+  }
+  .toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .toggle-btn.active.aoi { background: var(--aoi); border-color: var(--aoi); }
+
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  li.item {
+    background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+  }
+  li.item:active { background: #eee; }
+  li.item.is-settled { opacity: 0.55; }
+  li.item .tag { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tag.aoi { background: var(--aoi); }
+  .tag.ryu { background: var(--ryu); }
+  li.item .main { flex: 1; min-width: 0; }
+  li.item .desc { font-weight: 500; }
+  li.item .meta { font-size: 0.78rem; color: var(--muted); }
+  li.item .amount { font-weight: bold; white-space: nowrap; }
+  .empty { text-align: center; color: var(--muted); padding: 20px; }
+  .tag-badge {
+    display: inline-block; font-size: 0.7rem; padding: 2px 6px; border-radius: 6px;
+    background: #eee; color: #666; margin-left: 6px;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex;
+    align-items: center; justify-content: center; padding: 20px; z-index: 100; overflow-y: auto;
+  }
+  .modal-card {
+    background: var(--card); border-radius: 16px; padding: 24px; max-width: 340px; width: 100%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin: auto; position: relative; text-align: left;
+  }
+  .modal-card h2 { margin: 0 0 16px; font-size: 1.2rem; text-align: center; }
+  .modal-close {
+    position: absolute; top: 10px; left: 10px; width: 32px; height: 32px; border: none;
+    background: none; font-size: 1.5rem; line-height: 1; color: var(--muted); cursor: pointer; padding: 0;
+  }
+  button.submit {
+    padding: 12px; border: none; border-radius: 10px; background: var(--text); color: #fff;
+    font-size: 1rem; cursor: pointer; margin-top: 0;
+  }
+  button.danger { background: #c0392b; }
+  .defs-list { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 300;
+  }
+  .spinner {
+    width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--border);
+    border-top-color: var(--accent); animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #2b2b2b;
+    color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 0.85rem; z-index: 200;
+    max-width: 90%; text-align: center;
+  }
+</style>
+</head>
+<body>
+<button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<button class="reload-btn" id="reloadBtn" type="button" aria-label="再読み込み">⟳</button>
+<div class="menu-backdrop" id="menuBackdrop" hidden></div>
+<nav class="menu-drawer" id="menuDrawer">
+  <div class="menu-user" id="menuUser">-</div>
+  <a class="menu-item" href="index.html">ホーム</a>
+  <a class="menu-item" href="kakeibo.html">家計簿</a>
+  <a class="menu-item" href="graph.html">家計簿グラフ</a>
+  <a class="menu-item" href="shopping.html">買い物リスト</a>
+  <a class="menu-item" href="todo.html">やることリスト</a>
+  <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
+</nav>
+
+<header>
+  <h1>家事管理</h1>
+</header>
+
+<div class="container" id="app" hidden>
+  <div class="month-nav">
+    <button class="nav-btn" id="prevMonth" type="button">‹</button>
+    <div class="month-label" id="monthLabel">-</div>
+    <button class="nav-btn" id="nextMonth" type="button">›</button>
+  </div>
+
+  <div class="balance-card" id="pointsCard">
+    <div class="label">読み込み中...</div>
+  </div>
+
+  <div class="settle-bar" id="settleBar" hidden>
+    <button id="settleBtn" type="button">この月を締める</button>
+  </div>
+  <div class="settled-banner" id="settledBanner" hidden>この月は締め済みです</div>
+
+  <div class="section-title">家事を行った</div>
+  <div class="chore-grid" id="choreGrid"></div>
+  <button class="manage-link" id="manageChoresBtn" type="button">家事一覧を編集</button>
+
+  <div class="section-title">この月の記録</div>
+  <ul class="list" id="logList">
+    <li class="empty">読み込み中...</li>
+  </ul>
+</div>
+
+<div class="overlay" id="defOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="defCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>家事一覧を編集</h2>
+    <form id="defAddForm">
+      <div class="row">
+        <input type="text" id="defName" placeholder="家事名 (例: 皿洗い)" autocomplete="off" required>
+        <input type="number" id="defPoints" placeholder="ポイント" inputmode="numeric" required>
+      </div>
+      <button type="submit" class="submit" style="width: 100%;">追加</button>
+    </form>
+    <div class="defs-list">
+      <ul class="list" id="defsList"></ul>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="defEditOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="defEditCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>家事を編集</h2>
+    <form id="defEditForm">
+      <div class="row">
+        <input type="text" id="deName" placeholder="家事名" autocomplete="off" required>
+        <input type="number" id="dePoints" placeholder="ポイント" inputmode="numeric" required>
+      </div>
+      <div class="row">
+        <button type="submit" class="submit">更新する</button>
+        <button type="button" class="submit danger" id="defDeleteBtn">削除する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="logEditOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="logEditCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>記録を編集</h2>
+    <form id="logEditForm">
+      <div class="row">
+        <input type="date" id="leDate" required>
+        <input type="number" id="lePoints" placeholder="ポイント" inputmode="numeric" required>
+      </div>
+      <div class="row">
+        <input type="text" id="leName" placeholder="家事名" required>
+      </div>
+      <div class="row">
+        <div class="toggle-group" id="logPayerGroup">
+          <div class="toggle-btn aoi" data-value="碧">碧</div>
+          <div class="toggle-btn" data-value="竜">竜</div>
+        </div>
+      </div>
+      <div class="row">
+        <button type="submit" class="submit">更新する</button>
+        <button type="button" class="submit danger" id="logDeleteBtn">削除する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOverlay" hidden>
+  <div class="modal-card" style="text-align: center;">
+    <p id="confirmMsg" style="color: var(--text); margin-bottom: 20px;">よろしいですか？</p>
+    <div class="row">
+      <button class="toggle-btn" id="confirmCancel">キャンセル</button>
+      <button class="toggle-btn active" id="confirmOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
+  const STORAGE_KEY = 'kakeibo_passphrase';
+  const LOGIN_ID_KEY = 'kakeibo_login_id';
+  const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
+
+  const state = { loginId: 'aoi' };
+  let choreDefs = [];
+  let choreLogs = [];
+  let currentMonth = todayMonth_();
+  let editingDefId = null;
+  let editingLogId = null;
+
+  const appEl = document.getElementById('app');
+  const monthLabel = document.getElementById('monthLabel');
+  const prevMonthBtn = document.getElementById('prevMonth');
+  const nextMonthBtn = document.getElementById('nextMonth');
+  const pointsCard = document.getElementById('pointsCard');
+  const settleBar = document.getElementById('settleBar');
+  const settleBtn = document.getElementById('settleBtn');
+  const settledBanner = document.getElementById('settledBanner');
+  const choreGrid = document.getElementById('choreGrid');
+  const manageChoresBtn = document.getElementById('manageChoresBtn');
+  const logList = document.getElementById('logList');
+
+  const defOverlay = document.getElementById('defOverlay');
+  const defCloseBtn = document.getElementById('defCloseBtn');
+  const defAddForm = document.getElementById('defAddForm');
+  const defName = document.getElementById('defName');
+  const defPoints = document.getElementById('defPoints');
+  const defsList = document.getElementById('defsList');
+
+  const defEditOverlay = document.getElementById('defEditOverlay');
+  const defEditCloseBtn = document.getElementById('defEditCloseBtn');
+  const defEditForm = document.getElementById('defEditForm');
+  const deName = document.getElementById('deName');
+  const dePoints = document.getElementById('dePoints');
+  const defDeleteBtn = document.getElementById('defDeleteBtn');
+
+  const logEditOverlay = document.getElementById('logEditOverlay');
+  const logEditCloseBtn = document.getElementById('logEditCloseBtn');
+  const logEditForm = document.getElementById('logEditForm');
+  const leDate = document.getElementById('leDate');
+  const lePoints = document.getElementById('lePoints');
+  const leName = document.getElementById('leName');
+  const logDeleteBtn = document.getElementById('logDeleteBtn');
+  let logPayer = '碧';
+
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmMsg = document.getElementById('confirmMsg');
+  const confirmCancel = document.getElementById('confirmCancel');
+  const confirmOk = document.getElementById('confirmOk');
+
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const toast = document.getElementById('toast');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const menuBackdrop = document.getElementById('menuBackdrop');
+  const menuDrawer = document.getElementById('menuDrawer');
+  const menuUser = document.getElementById('menuUser');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const reloadBtn = document.getElementById('reloadBtn');
+  reloadBtn.addEventListener('click', () => location.reload());
+
+  function todayMonth_() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+  function addMonths_(ym, delta) {
+    const parts = ym.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1 + delta, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+  function formatMonthLabel_(ym) {
+    const parts = ym.split('-').map(Number);
+    return parts[0] + '年' + parts[1] + '月';
+  }
+  function yen_(n) { return '¥' + Number(n).toLocaleString(); }
+  function escapeHtml_(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function getPassphrase_() { return localStorage.getItem(STORAGE_KEY) || ''; }
+  function clearPassphrase_() {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LOGIN_ID_KEY);
+  }
+  function showLoading_() { loadingOverlay.hidden = false; }
+  function hideLoading_() { loadingOverlay.hidden = true; }
+  function showToast_(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(showToast_._t);
+    showToast_._t = setTimeout(() => { toast.hidden = true; }, 2500);
+  }
+  function askConfirm_(message) {
+    return new Promise((resolve) => {
+      confirmMsg.textContent = message;
+      confirmOverlay.hidden = false;
+      const cleanup = (result) => {
+        confirmOverlay.hidden = true;
+        confirmCancel.removeEventListener('click', onCancel);
+        confirmOk.removeEventListener('click', onOk);
+        resolve(result);
+      };
+      const onCancel = () => cleanup(false);
+      const onOk = () => cleanup(true);
+      confirmCancel.addEventListener('click', onCancel);
+      confirmOk.addEventListener('click', onOk);
+    });
+  }
+  function currentPayer_() {
+    return LOGIN_ID_TO_PAYER[state.loginId] || '碧';
+  }
+
+  function openMenu_() { menuDrawer.classList.add('open'); menuBackdrop.hidden = false; }
+  function closeMenu_() { menuDrawer.classList.remove('open'); menuBackdrop.hidden = true; }
+  menuBtn.addEventListener('click', openMenu_);
+  menuBackdrop.addEventListener('click', closeMenu_);
+  logoutBtn.addEventListener('click', () => {
+    clearPassphrase_();
+    location.href = 'index.html';
+  });
+
+  function logsForMonth_(ym) {
+    return choreLogs.filter(l => l.date.slice(0, 7) === ym);
+  }
+
+  function renderChoreGrid_() {
+    if (!choreDefs.length) {
+      choreGrid.innerHTML = '<div class="empty" style="width:100%;">家事が登録されていません。下の「家事一覧を編集」から追加してください</div>';
+      return;
+    }
+    choreGrid.innerHTML = choreDefs.map(d => (
+      '<button class="chore-btn" data-id="' + d.id + '">' +
+      escapeHtml_(d.name) +
+      '<span class="pt">' + d.points + 'pt</span>' +
+      '</button>'
+    )).join('');
+  }
+
+  function renderMonth_() {
+    monthLabel.textContent = formatMonthLabel_(currentMonth);
+    const logs = logsForMonth_(currentMonth);
+
+    let aoiPoints = 0, ryuPoints = 0;
+    logs.forEach(l => {
+      if (l.payer === '碧') aoiPoints += l.points; else if (l.payer === '竜') ryuPoints += l.points;
+    });
+    pointsCard.innerHTML =
+      '<div class="label">今月のポイント</div>' +
+      '<div class="amount">碧 ' + aoiPoints + 'pt ・ 竜 ' + ryuPoints + 'pt</div>';
+
+    if (!logs.length) {
+      settleBar.hidden = true;
+      settledBanner.hidden = true;
+    } else {
+      const allSettled = logs.every(l => l.settled);
+      settleBar.hidden = allSettled;
+      settledBanner.hidden = !allSettled;
+    }
+
+    if (!logs.length) {
+      logList.innerHTML = '<li class="empty">この月の記録はありません</li>';
+    } else {
+      logList.innerHTML = logs.map(l => {
+        const tagClass = l.payer === '碧' ? 'aoi' : 'ryu';
+        const badge = l.settled ? '<span class="tag-badge">締め済</span>' : '';
+        return (
+          '<li class="item' + (l.settled ? ' is-settled' : '') + '" data-id="' + l.id + '">' +
+          '<span class="tag ' + tagClass + '"></span>' +
+          '<div class="main">' +
+            '<div class="desc">' + escapeHtml_(l.name) + badge + '</div>' +
+            '<div class="meta">' + l.date + ' ・ ' + l.payer + '</div>' +
+          '</div>' +
+          '<div class="amount">' + l.points + 'pt</div>' +
+          '</li>'
+        );
+      }).join('');
+    }
+  }
+
+  prevMonthBtn.addEventListener('click', () => { currentMonth = addMonths_(currentMonth, -1); renderMonth_(); });
+  nextMonthBtn.addEventListener('click', () => { currentMonth = addMonths_(currentMonth, 1); renderMonth_(); });
+
+  // 家事ボタンをタップ → 今日の日付・ログイン中の人ですぐ記録する
+  choreGrid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.chore-btn');
+    if (!btn) return;
+    const def = choreDefs.find(d => d.id === btn.dataset.id);
+    if (!def) return;
+    showLoading_();
+    try {
+      const data = await postAction_({
+        action: 'choreLogAdd',
+        items: [{ name: def.name, points: def.points, payer: currentPayer_(), date: todayDate_() }],
+      });
+      if (data) {
+        choreLogs = data.choreLogs;
+        currentMonth = todayMonth_();
+        renderMonth_();
+        showToast_(def.name + 'を記録しました (+' + def.points + 'pt)');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  function todayDate_() { return new Date().toISOString().slice(0, 10); }
+
+  settleBtn.addEventListener('click', async () => {
+    const ok = await askConfirm_(formatMonthLabel_(currentMonth) + 'を締めますか？（ポイント差に応じて家計簿に割引が追加されます）');
+    if (!ok) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreSettleMonth', yearMonth: currentMonth });
+      if (data) {
+        choreLogs = data.choreLogs;
+        renderMonth_();
+        const r = data.result;
+        if (r.diff > 0) {
+          showToast_(r.winner + 'に' + yen_(r.discount) + 'の割引を家計簿に追加しました');
+        } else {
+          showToast_('ポイント差はありませんでした');
+        }
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  // --- 家事一覧の管理ダイアログ ---
+  manageChoresBtn.addEventListener('click', () => {
+    renderDefsList_();
+    defOverlay.hidden = false;
+  });
+  defCloseBtn.addEventListener('click', () => { defOverlay.hidden = true; });
+
+  function renderDefsList_() {
+    if (!choreDefs.length) {
+      defsList.innerHTML = '<li class="empty">まだ登録されていません</li>';
+      return;
+    }
+    defsList.innerHTML = choreDefs.map(d => (
+      '<li class="item" data-id="' + d.id + '">' +
+      '<div class="main"><div class="desc">' + escapeHtml_(d.name) + '</div></div>' +
+      '<div class="amount">' + d.points + 'pt</div>' +
+      '</li>'
+    )).join('');
+  }
+
+  defAddForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = defName.value.trim();
+    const points = Number(defPoints.value);
+    if (!name || !points) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreDefAdd', items: [{ name, points }] });
+      if (data) {
+        choreDefs = data.choreDefs;
+        renderChoreGrid_();
+        renderDefsList_();
+        defName.value = '';
+        defPoints.value = '';
+        defName.focus();
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  defsList.addEventListener('click', (e) => {
+    const li = e.target.closest('li.item');
+    if (!li || !li.dataset.id) return;
+    const def = choreDefs.find(d => d.id === li.dataset.id);
+    if (!def) return;
+    editingDefId = def.id;
+    deName.value = def.name;
+    dePoints.value = def.points;
+    defEditOverlay.hidden = false;
+  });
+
+  defEditCloseBtn.addEventListener('click', () => {
+    defEditOverlay.hidden = true;
+    editingDefId = null;
+  });
+
+  defEditForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editingDefId) return;
+    const name = deName.value.trim();
+    const points = Number(dePoints.value);
+    if (!name || !points) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreDefUpdate', id: editingDefId, name, points });
+      if (data) {
+        choreDefs = data.choreDefs;
+        renderChoreGrid_();
+        renderDefsList_();
+        defEditOverlay.hidden = true;
+        editingDefId = null;
+        showToast_('更新しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  defDeleteBtn.addEventListener('click', async () => {
+    if (!editingDefId) return;
+    const ok = await askConfirm_('この家事を削除しますか？（過去の記録は残ります）');
+    if (!ok) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreDefDelete', id: editingDefId });
+      if (data) {
+        choreDefs = data.choreDefs;
+        renderChoreGrid_();
+        renderDefsList_();
+        defEditOverlay.hidden = true;
+        editingDefId = null;
+        showToast_('削除しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  // --- 記録の編集ダイアログ ---
+  logList.addEventListener('click', (e) => {
+    const li = e.target.closest('li.item');
+    if (!li || !li.dataset.id) return;
+    const log = choreLogs.find(l => l.id === li.dataset.id);
+    if (!log) return;
+    editingLogId = log.id;
+    leDate.value = log.date;
+    lePoints.value = log.points;
+    leName.value = log.name;
+    logPayer = log.payer;
+    renderLogPayerToggle_();
+    logEditOverlay.hidden = false;
+  });
+
+  logEditCloseBtn.addEventListener('click', () => {
+    logEditOverlay.hidden = true;
+    editingLogId = null;
+  });
+
+  document.getElementById('logPayerGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    logPayer = btn.dataset.value;
+    renderLogPayerToggle_();
+  });
+  function renderLogPayerToggle_() {
+    document.querySelectorAll('#logPayerGroup .toggle-btn').forEach(b => {
+      const active = b.dataset.value === logPayer;
+      b.classList.toggle('active', active);
+      b.classList.toggle('aoi', active && b.dataset.value === '碧');
+    });
+  }
+
+  logEditForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editingLogId) return;
+    showLoading_();
+    try {
+      const data = await postAction_({
+        action: 'choreLogUpdate',
+        id: editingLogId,
+        date: leDate.value,
+        name: leName.value,
+        points: Number(lePoints.value),
+        payer: logPayer,
+      });
+      if (data) {
+        choreLogs = data.choreLogs;
+        renderMonth_();
+        logEditOverlay.hidden = true;
+        editingLogId = null;
+        showToast_('更新しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  logDeleteBtn.addEventListener('click', async () => {
+    if (!editingLogId) return;
+    const ok = await askConfirm_('この記録を削除しますか？');
+    if (!ok) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'choreLogDelete', id: editingLogId });
+      if (data) {
+        choreLogs = data.choreLogs;
+        renderMonth_();
+        logEditOverlay.hidden = true;
+        editingLogId = null;
+        showToast_('削除しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  async function postAction_(payload) {
+    let res;
+    try {
+      res = await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
+      });
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
+    if (data.error === '合言葉が違います') {
+      clearPassphrase_();
+      location.href = 'index.html';
+      return null;
+    }
+    if (data.error) {
+      showToast_('エラー: ' + data.error);
+      return null;
+    }
+    return data;
+  }
+
+  async function main_() {
+    const passphrase = getPassphrase_();
+    if (!passphrase) {
+      location.href = 'index.html';
+      return;
+    }
+    const loginId = localStorage.getItem(LOGIN_ID_KEY);
+    if (loginId) {
+      state.loginId = loginId;
+      menuUser.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
+    }
+    menuBtn.hidden = false;
+
+    let data;
+    try {
+      const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase) + '&list=chores');
+      data = await res.json();
+    } catch (err) {
+      hideLoading_();
+      showToast_('通信エラーが発生しました');
+      return;
+    }
+    if (data.error) {
+      location.href = 'index.html';
+      return;
+    }
+    choreDefs = data.choreDefs;
+    choreLogs = data.choreLogs;
+    renderChoreGrid_();
+    renderMonth_();
+    appEl.hidden = false;
+    hideLoading_();
+  }
+
+  main_();
+</script>
+</body>
+</html>
