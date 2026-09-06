@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買い物リスト</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<meta name="theme-color" content="#f5f3ef">
+<style>
+  :root {
+    --bg: #f5f3ef;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #888;
+    --accent: #d97757;
+    --aoi: #6ba3c9;
+    --border: #e5e0d8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header { padding: 20px 16px 12px; text-align: center; }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  [hidden] { display: none !important; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  .hamburger-btn {
+    position: fixed; top: 14px; left: 14px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 10px; border: none;
+    background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem; cursor: pointer;
+  }
+  .menu-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 60; }
+  .menu-drawer {
+    position: fixed; top: 0; left: 0; height: 100%; width: 260px; max-width: 80%;
+    background: var(--card); z-index: 70; box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    transform: translateX(-100%); transition: transform 0.25s ease;
+    padding: 60px 12px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .menu-drawer.open { transform: translateX(0); }
+  .menu-user {
+    font-weight: bold; padding: 10px 10px 14px; color: var(--text);
+    border-bottom: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .menu-item {
+    display: block; width: 100%; text-align: left; padding: 12px 10px;
+    border: none; background: none; font-size: 0.95rem; color: var(--text);
+    text-decoration: none; border-radius: 8px; cursor: pointer; font-family: inherit;
+  }
+  .menu-item:active { background: var(--bg); }
+
+  .add-form {
+    display: flex; gap: 8px; margin-bottom: 20px;
+  }
+  .add-form input {
+    flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 1rem; background: #fff;
+  }
+  .add-form button {
+    padding: 0 18px; border: none; border-radius: 8px; background: var(--accent);
+    color: #fff; font-size: 1rem; cursor: pointer;
+  }
+
+  .section-title { font-size: 0.85rem; color: var(--muted); margin: 20px 0 8px; }
+
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  li.item {
+    background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  li.item.purchased { opacity: 0.5; }
+  li.item .check {
+    width: 24px; height: 24px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent);
+  }
+  li.item .desc { flex: 1; cursor: pointer; word-break: break-all; }
+  li.item.purchased .desc { text-decoration: line-through; }
+  .empty { text-align: center; color: var(--muted); padding: 20px; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    z-index: 100; overflow-y: auto;
+  }
+  .modal-card {
+    background: var(--card); border-radius: 16px; padding: 24px; max-width: 340px;
+    width: 100%; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin: auto;
+    position: relative;
+  }
+  .modal-card h2 { margin: 0 0 16px; font-size: 1.2rem; }
+  .modal-card input {
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 1rem; margin-bottom: 14px; text-align: center;
+  }
+  .modal-close {
+    position: absolute; top: 10px; left: 10px; width: 32px; height: 32px;
+    border: none; background: none; font-size: 1.5rem; line-height: 1;
+    color: var(--muted); cursor: pointer; padding: 0;
+  }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  button.submit {
+    padding: 12px; border: none; border-radius: 10px; background: var(--text);
+    color: #fff; font-size: 1rem; cursor: pointer;
+  }
+  button.danger { background: #c0392b; }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 300;
+  }
+  .spinner {
+    width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--border);
+    border-top-color: var(--accent); animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #2b2b2b; color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-size: 0.85rem; z-index: 200; max-width: 90%; text-align: center;
+  }
+</style>
+</head>
+<body>
+<button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
+<div class="menu-backdrop" id="menuBackdrop" hidden></div>
+<nav class="menu-drawer" id="menuDrawer">
+  <div class="menu-user" id="menuUser">-</div>
+  <a class="menu-item" href="index.html">家計簿</a>
+  <a class="menu-item" href="graph.html">家計簿グラフ</a>
+  <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
+</nav>
+
+<header>
+  <h1>買い物リスト</h1>
+</header>
+
+<div class="container" id="app" hidden>
+  <form class="add-form" id="addForm">
+    <input type="text" id="addInput" placeholder="買うものを入力" autocomplete="off">
+    <button type="submit">追加</button>
+  </form>
+
+  <div class="section-title">未購入</div>
+  <ul class="list" id="pendingList">
+    <li class="empty">読み込み中...</li>
+  </ul>
+
+  <div class="section-title" id="purchasedTitle" hidden>購入済み（7日で自動的に消えます）</div>
+  <ul class="list" id="purchasedList"></ul>
+</div>
+
+<div class="overlay" id="editOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="editCloseBtn" type="button" aria-label="閉じる">×</button>
+    <h2>編集</h2>
+    <form id="editForm">
+      <input type="text" id="eDesc" required>
+      <div class="row">
+        <button type="submit" class="submit">更新する</button>
+        <button type="button" class="submit danger" id="editDeleteBtn">削除する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
+  const STORAGE_KEY = 'kakeibo_passphrase';
+  const LOGIN_ID_KEY = 'kakeibo_login_id';
+  const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
+
+  let items = [];
+  let editingId = null;
+
+  const appEl = document.getElementById('app');
+  const addForm = document.getElementById('addForm');
+  const addInput = document.getElementById('addInput');
+  const pendingList = document.getElementById('pendingList');
+  const purchasedList = document.getElementById('purchasedList');
+  const purchasedTitle = document.getElementById('purchasedTitle');
+
+  const editOverlay = document.getElementById('editOverlay');
+  const editForm = document.getElementById('editForm');
+  const editCloseBtn = document.getElementById('editCloseBtn');
+  const eDesc = document.getElementById('eDesc');
+  const editDeleteBtn = document.getElementById('editDeleteBtn');
+
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const toast = document.getElementById('toast');
+
+  const menuBtn = document.getElementById('menuBtn');
+  const menuBackdrop = document.getElementById('menuBackdrop');
+  const menuDrawer = document.getElementById('menuDrawer');
+  const menuUser = document.getElementById('menuUser');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  function getPassphrase_() { return localStorage.getItem(STORAGE_KEY) || ''; }
+  function clearPassphrase_() {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LOGIN_ID_KEY);
+  }
+  function showLoading_() { loadingOverlay.hidden = false; }
+  function hideLoading_() { loadingOverlay.hidden = true; }
+  function showToast_(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(showToast_._t);
+    showToast_._t = setTimeout(() => { toast.hidden = true; }, 2500);
+  }
+  function escapeHtml_(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function openMenu_() { menuDrawer.classList.add('open'); menuBackdrop.hidden = false; }
+  function closeMenu_() { menuDrawer.classList.remove('open'); menuBackdrop.hidden = true; }
+  menuBtn.addEventListener('click', openMenu_);
+  menuBackdrop.addEventListener('click', closeMenu_);
+  logoutBtn.addEventListener('click', () => {
+    clearPassphrase_();
+    location.href = 'index.html';
+  });
+
+  function renderList_() {
+    const notPurchased = items.filter(it => !it.purchased);
+    const purchased = items.filter(it => it.purchased);
+
+    pendingList.innerHTML = notPurchased.length
+      ? notPurchased.map(itemRow_).join('')
+      : '<li class="empty">買うものはありません</li>';
+
+    purchasedTitle.hidden = purchased.length === 0;
+    purchasedList.innerHTML = purchased.map(itemRow_).join('');
+  }
+
+  function itemRow_(it) {
+    return (
+      '<li class="item' + (it.purchased ? ' purchased' : '') + '" data-id="' + it.id + '">' +
+      '<input type="checkbox" class="check" data-id="' + it.id + '"' + (it.purchased ? ' checked' : '') + '>' +
+      '<span class="desc" data-id="' + it.id + '">' + escapeHtml_(it.desc) + '</span>' +
+      '</li>'
+    );
+  }
+
+  // チェックのON/OFFは体感速度優先で楽観的更新(即座に見た目を変えてから通信)。
+  // 失敗時だけ元に戻してトーストで知らせる。
+  document.addEventListener('click', async (e) => {
+    const check = e.target.closest('.check');
+    if (!check) return;
+    const id = check.dataset.id;
+    const item = items.find(it => it.id === id);
+    if (!item) return;
+    const purchased = check.checked;
+    item.purchased = purchased;
+    renderList_();
+    const data = await postAction_({ action: 'shoppingToggle', id, purchased });
+    if (data) {
+      items = data.shoppingItems;
+    } else {
+      item.purchased = !purchased;
+    }
+    renderList_();
+  });
+
+  document.addEventListener('click', (e) => {
+    const desc = e.target.closest('.desc');
+    if (!desc) return;
+    const item = items.find(it => it.id === desc.dataset.id);
+    if (!item) return;
+    editingId = item.id;
+    eDesc.value = item.desc;
+    editOverlay.hidden = false;
+  });
+
+  editCloseBtn.addEventListener('click', () => {
+    editOverlay.hidden = true;
+    editingId = null;
+  });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editingId) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'shoppingUpdate', id: editingId, desc: eDesc.value });
+      if (data) {
+        items = data.shoppingItems;
+        renderList_();
+        editOverlay.hidden = true;
+        editingId = null;
+        showToast_('更新しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  editDeleteBtn.addEventListener('click', async () => {
+    if (!editingId) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'shoppingDelete', id: editingId });
+      if (data) {
+        items = data.shoppingItems;
+        renderList_();
+        editOverlay.hidden = true;
+        editingId = null;
+        showToast_('削除しました');
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const desc = addInput.value.trim();
+    if (!desc) return;
+    showLoading_();
+    try {
+      const data = await postAction_({ action: 'shoppingAdd', desc });
+      if (data) {
+        items = data.shoppingItems;
+        renderList_();
+        addInput.value = '';
+        addInput.focus();
+      }
+    } finally {
+      hideLoading_();
+    }
+  });
+
+  async function postAction_(payload) {
+    let res;
+    try {
+      res = await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
+      });
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      showToast_('通信エラーが発生しました。もう一度お試しください');
+      return null;
+    }
+    if (data.error === '合言葉が違います') {
+      clearPassphrase_();
+      location.href = 'index.html';
+      return null;
+    }
+    if (data.error) {
+      showToast_('エラー: ' + data.error);
+      return null;
+    }
+    return data;
+  }
+
+  async function main_() {
+    const passphrase = getPassphrase_();
+    if (!passphrase) {
+      location.href = 'index.html';
+      return;
+    }
+    const loginId = localStorage.getItem(LOGIN_ID_KEY);
+    if (loginId) {
+      menuUser.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
+    }
+    menuBtn.hidden = false;
+
+    let data;
+    try {
+      const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase) + '&list=shopping');
+      data = await res.json();
+    } catch (err) {
+      hideLoading_();
+      showToast_('通信エラーが発生しました');
+      return;
+    }
+    if (data.error) {
+      location.href = 'index.html';
+      return;
+    }
+    items = data.items;
+    renderList_();
+    appEl.hidden = false;
+    hideLoading_();
+  }
+
+  main_();
+</script>
+</body>
+</html>

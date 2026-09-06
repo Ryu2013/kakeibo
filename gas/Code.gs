@@ -3,16 +3,21 @@
  * スプレッドシートの「拡張機能 > Apps Script」に貼り付けて使う。
  * デプロイ: ウェブアプリ / 実行ユーザー:自分 / アクセス:全員
  *
- * シート列: id, 日付, 内容, 金額, 支払者, 精算済み, 全額請求
+ * 支出シート列: id, 日付, 内容, 金額, 支払者, 精算済み, 全額請求
+ * 買い物シート列: id, 内容, 購入済み, 購入日時
  */
 
 const SHEET_NAME = '支出';
+const SHOPPING_SHEET_NAME = '買い物';
 const PASSPHRASE = 'bebichan';
 const PAYERS = ['碧', '竜'];
 
 function doGet(e) {
   if (e.parameter.passphrase !== PASSPHRASE) {
     return jsonResponse_({ error: '合言葉が違います' });
+  }
+  if (e.parameter.list === 'shopping') {
+    return jsonResponse_({ items: readShoppingItems_() });
   }
   const items = readItems_();
   return jsonResponse_({ items: items, balance: calcBalance_(items) });
@@ -116,6 +121,62 @@ function doPost(e) {
       return jsonResponse_({ ok: true, items: items, balance: calcBalance_(items) });
     }
 
+    if (body.action === 'shoppingAdd') {
+      const desc = String(body.desc || '').trim();
+      if (!desc) {
+        return jsonResponse_({ error: '内容を入力してください' });
+      }
+      const sheet = getShoppingSheet_();
+      sheet.appendRow([Utilities.getUuid(), desc, false, '']);
+      return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
+    }
+
+    if (body.action === 'shoppingUpdate') {
+      const desc = String(body.desc || '').trim();
+      if (!desc) {
+        return jsonResponse_({ error: '内容を入力してください' });
+      }
+      const sheet = getShoppingSheet_();
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.getRange(i + 1, 2).setValue(desc);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return jsonResponse_({ error: '対象が見つかりません' });
+      }
+      return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
+    }
+
+    if (body.action === 'shoppingDelete') {
+      const sheet = getShoppingSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.deleteRow(i + 1);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
+    }
+
+    if (body.action === 'shoppingToggle') {
+      const sheet = getShoppingSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          const purchased = !!body.purchased;
+          sheet.getRange(i + 1, 3, 1, 2).setValues([[purchased, purchased ? new Date() : '']]);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
+    }
+
     if (body.action === 'settleMonth') {
       const yearMonth = String(body.yearMonth || '');
       if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
@@ -183,6 +244,31 @@ function getSheet_() {
   return sheet;
 }
 
+function readShoppingItems_() {
+  const sheet = getShoppingSheet_();
+  const rows = sheet.getDataRange().getValues();
+  rows.shift(); // ヘッダー除去
+  return rows
+    .filter(function (r) { return r[0]; })
+    .map(function (r) {
+      return {
+        id: r[0],
+        desc: r[1],
+        purchased: r[2] === true || r[2] === 'TRUE',
+      };
+    });
+}
+
+function getShoppingSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHOPPING_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHOPPING_SHEET_NAME);
+    sheet.appendRow(['id', '内容', '購入済み', '購入日時']);
+  }
+  return sheet;
+}
+
 function formatDate_(d) {
   if (Object.prototype.toString.call(d) === '[object Date]') {
     return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
@@ -237,5 +323,48 @@ function installMonthlyCleanupTrigger() {
     .timeBased()
     .onMonthDay(1)
     .atHour(3)
+    .create();
+}
+
+// 購入済みになってから7日以上経った買い物リストの記録を削除する。
+// 未購入の記録は件数が増えても削除しない。
+const SHOPPING_RETENTION_DAYS = 7;
+
+function cleanupOldShoppingItems() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - SHOPPING_RETENTION_DAYS);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getShoppingSheet_();
+    const data = sheet.getDataRange().getValues();
+    let deleted = 0;
+    for (let i = data.length - 1; i >= 1; i--) {
+      const purchased = data[i][2] === true || data[i][2] === 'TRUE';
+      const purchasedAt = data[i][3];
+      if (purchased && purchasedAt instanceof Date && purchasedAt < cutoff) {
+        sheet.deleteRow(i + 1);
+        deleted++;
+      }
+    }
+    Logger.log('cleanupOldShoppingItems: deleted ' + deleted + ' rows');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Apps Scriptエディタでこの関数を選んで一度だけ実行(▶)すると、
+// 毎日深夜にcleanupOldShoppingItemsが自動実行されるようになる。
+function installDailyShoppingCleanupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'cleanupOldShoppingItems') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('cleanupOldShoppingItems')
+    .timeBased()
+    .everyDays(1)
+    .atHour(4)
     .create();
 }
