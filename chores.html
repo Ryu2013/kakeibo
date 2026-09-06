@@ -78,6 +78,7 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px;
   }
   .balance-card .label { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+  .diff-badge { color: var(--accent); font-weight: bold; }
 
   .settle-bar { margin: 14px 0; }
   .settle-bar button {
@@ -221,7 +222,7 @@
   </div>
 
   <div class="balance-card">
-    <div class="label">今月のポイント</div>
+    <div class="label">今月のポイント <span id="pointsDiff" class="diff-badge"></span></div>
     <canvas id="pointsChart" height="120"></canvas>
   </div>
 
@@ -375,6 +376,7 @@
   const settleBar = document.getElementById('settleBar');
   const settleBtn = document.getElementById('settleBtn');
   const settledBanner = document.getElementById('settledBanner');
+  const pointsDiffEl = document.getElementById('pointsDiff');
   const logListAoi = document.getElementById('logListAoi');
   const logListRyu = document.getElementById('logListRyu');
 
@@ -566,6 +568,8 @@
       if (l.payer === '碧') aoiPoints += l.points; else if (l.payer === '竜') ryuPoints += l.points;
     });
     renderPointsChart_(aoiPoints, ryuPoints);
+    const diff = Math.abs(aoiPoints - ryuPoints);
+    pointsDiffEl.textContent = diff > 0 ? '(差分 ' + diff + 'pt)' : '';
 
     if (!logs.length) {
       settleBar.hidden = true;
