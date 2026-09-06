@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>家計簿</title>
+<title>家計簿アプリ</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -19,7 +19,6 @@
     --muted: #888;
     --accent: #d97757;
     --aoi: #6ba3c9;
-    --ryu: #d97757;
     --border: #e5e0d8;
   }
   * { box-sizing: border-box; }
@@ -30,402 +29,97 @@
     color: var(--text);
     padding-bottom: 40px;
   }
-  header {
-    padding: 20px 16px 4px;
-    text-align: center;
-  }
+  header { padding: 20px 16px 4px; text-align: center; }
   header h1 { margin: 0; font-size: 1.3rem; }
-  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
   [hidden] { display: none !important; }
+  .container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
 
-  .hamburger-btn {
-    position: fixed;
-    top: 14px;
-    left: 14px;
-    z-index: 50;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    border: none;
-    background: var(--card);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    font-size: 1.2rem;
-    cursor: pointer;
-  }
   .reload-btn {
-    position: fixed;
-    top: 14px;
-    right: 14px;
-    z-index: 50;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    border: none;
-    background: var(--card);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    font-size: 1.2rem;
-    cursor: pointer;
-  }
-  .menu-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 60;
-  }
-  .menu-drawer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 260px;
-    max-width: 80%;
-    background: var(--card);
-    z-index: 70;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    padding: 60px 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .menu-drawer.open { transform: translateX(0); }
-  .menu-user {
-    font-weight: bold;
-    padding: 10px 10px 14px;
-    color: var(--text);
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-  }
-  .menu-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 12px 10px;
-    border: none;
-    background: none;
-    font-size: 0.95rem;
-    color: var(--text);
-    text-decoration: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .menu-item:active { background: var(--bg); }
-
-  .month-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 16px 0 14px;
-  }
-  .month-nav .nav-btn {
-    border: none;
-    background: var(--card);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    font-size: 1.1rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    cursor: pointer;
-  }
-  .month-nav .month-label {
-    font-weight: bold;
-    font-size: 1.05rem;
+    position: fixed; top: 14px; right: 14px; z-index: 50;
+    width: 40px; height: 40px; border-radius: 10px; border: none;
+    background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 1.2rem; cursor: pointer;
   }
 
-  .balance-card {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 16px;
-  }
-  .balance-card .amount { font-size: 1.8rem; font-weight: bold; margin: 6px 0; }
-  .balance-card .label { color: var(--muted); font-size: 0.85rem; }
-
-  .open-entry-btn {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-bottom: 20px;
+  .who-am-i {
+    text-align: center; font-size: 0.85rem; color: var(--muted); margin: 16px 0 20px;
   }
 
-  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .hub-btn {
+    display: block; width: 100%; padding: 18px; margin-bottom: 12px;
+    border: none; border-radius: 12px; background: var(--card); color: var(--text);
+    font-size: 1.05rem; font-weight: 500; text-align: center; text-decoration: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06); cursor: pointer; font-family: inherit;
+  }
+  .hub-btn:active { background: #eee; }
+  .hub-logout {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    margin-top: 12px; box-shadow: none;
+  }
+
+  .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
-  input, select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 1rem;
-    background: #fff;
-  }
   .toggle-group { display: flex; gap: 8px; }
   .toggle-btn {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: #fff;
-    text-align: center;
-    cursor: pointer;
-    user-select: none;
-    font-size: 0.95rem;
+    flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: #fff; text-align: center; cursor: pointer; user-select: none; font-size: 0.95rem;
   }
   .toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .toggle-btn.active.aoi { background: var(--aoi); border-color: var(--aoi); }
 
-  .modal-close {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: none;
-    font-size: 1.5rem;
-    line-height: 1;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .split-row {
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .split-side {
-    font-size: 0.85rem;
-    color: var(--muted);
-    flex: none;
-  }
-  .split-side.active { color: var(--text); font-weight: bold; }
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 40px;
-    height: 22px;
-    flex: none;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-slider {
-    position: absolute;
-    inset: 0;
-    background: var(--border);
-    transition: 0.2s;
-    border-radius: 22px;
-    cursor: pointer;
-  }
-  .switch-slider::before {
-    position: absolute;
-    content: "";
-    height: 16px;
-    width: 16px;
-    left: 3px;
-    bottom: 3px;
-    background: #fff;
-    transition: 0.2s;
-    border-radius: 50%;
-  }
-  .switch input:checked + .switch-slider { background: var(--accent); }
-  .switch input:checked + .switch-slider::before { transform: translateX(18px); }
-
-  button.submit {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    background: var(--text);
-    color: #fff;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-top: 4px;
-  }
-  button.submit:disabled { opacity: 0.5; }
-  button.btn-small {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 8px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
-
-  .pending-section { margin-top: 18px; }
-  .pending-header {
-    font-size: 0.85rem;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-
-  .month-swipe { touch-action: pan-y; }
-
-  ul.list { list-style: none; padding: 0; margin: 0; }
-  li.item {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  }
-  li.item.is-settled { opacity: 0.55; }
-  #list li.item { cursor: pointer; }
-  #list li.item:active { background: var(--bg); }
-  li.item.pending-item {
-    background: #fffaf5;
-    border: 1px dashed var(--border);
-    box-shadow: none;
-  }
-  li.item .tag {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .tag.aoi { background: var(--aoi); }
-  .tag.ryu { background: var(--ryu); }
-  li.item .main { flex: 1; min-width: 0; }
-  li.item .desc { font-weight: 500; }
-  li.item .meta { font-size: 0.78rem; color: var(--muted); }
-  li.item .amount { font-weight: bold; white-space: nowrap; }
-  li.item .del {
-    border: none; background: none; color: var(--muted);
-    font-size: 1.1rem; cursor: pointer; padding: 4px;
-  }
-  .empty { text-align: center; color: var(--muted); padding: 20px; }
-  .tag-badge {
-    display: inline-block; font-size: 0.7rem; padding: 2px 6px;
-    border-radius: 6px; background: #eee; color: #666; margin-left: 6px;
-  }
-  .tag-badge.full { background: #fde8d8; color: #a05a2c; }
-
-  .settle-bar { margin-top: 14px; }
-  .settle-bar button {
-    background: #fff;
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .settled-banner {
-    margin-top: 14px;
-    text-align: center;
-    padding: 12px;
-    border-radius: 10px;
-    background: #eef7ee;
-    color: #2f7a3d;
-    font-size: 0.9rem;
-  }
-
   .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    z-index: 100;
-    overflow-y: auto;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    z-index: 100; overflow-y: auto;
   }
   .modal-card {
-    background: var(--card);
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 340px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    margin: auto;
+    background: var(--card); border-radius: 16px; padding: 24px; max-width: 340px;
+    width: 100%; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin: auto;
   }
   .modal-card h2 { margin: 0 0 4px; font-size: 1.2rem; }
   .modal-card p { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
-  .modal-card input { margin-bottom: 12px; text-align: center; }
+  .modal-card input {
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 1rem; margin-bottom: 12px; text-align: center;
+  }
   .error-text { color: #c0392b; font-size: 0.85rem; min-height: 1.2em; margin: 0 0 8px; }
+  button.submit {
+    width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--text);
+    color: #fff; font-size: 1rem; cursor: pointer; margin-top: 4px;
+  }
+  button.submit:disabled { opacity: 0.5; }
 
   .loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(255,255,255,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 300;
+    position: fixed; inset: 0; background: rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 300;
   }
   .spinner {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 4px solid var(--border);
-    border-top-color: var(--accent);
-    animation: spin 0.8s linear infinite;
+    width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--border);
+    border-top-color: var(--accent); animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .toast {
-    position: fixed;
-    left: 50%;
-    bottom: 24px;
-    transform: translateX(-50%);
-    background: #2b2b2b;
-    color: #fff;
-    padding: 10px 18px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    z-index: 200;
-    max-width: 90%;
-    text-align: center;
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #2b2b2b; color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-size: 0.85rem; z-index: 200; max-width: 90%; text-align: center;
   }
 </style>
 </head>
 <body>
-<button class="hamburger-btn" id="menuBtn" type="button" aria-label="メニュー" hidden>☰</button>
 <button class="reload-btn" id="reloadBtn" type="button" aria-label="再読み込み">⟳</button>
-<div class="menu-backdrop" id="menuBackdrop" hidden></div>
-<nav class="menu-drawer" id="menuDrawer">
-  <div class="menu-user" id="menuUser">-</div>
-  <a class="menu-item" href="graph.html">家計簿グラフ</a>
-  <a class="menu-item" href="shopping.html">買い物リスト</a>
-  <a class="menu-item" href="todo.html">やることリスト</a>
-  <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
-</nav>
 
 <header>
-  <h1>家計簿</h1>
+  <h1>家計簿アプリ</h1>
 </header>
 
-<div class="container" id="app" hidden>
-  <div class="month-nav">
-    <button class="nav-btn" id="prevMonth" type="button">‹</button>
-    <div class="month-label" id="monthLabel">-</div>
-    <button class="nav-btn" id="nextMonth" type="button">›</button>
-  </div>
-
-  <div class="balance-card" id="balanceCard">
-    <div class="label">読み込み中...</div>
-  </div>
-
-  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ 記録を追加</button>
-
-  <div class="month-swipe" id="monthSwipe">
-    <ul class="list" id="list">
-      <li class="empty">読み込み中...</li>
-    </ul>
-  </div>
-
-  <div class="settle-bar" id="settleBar" hidden>
-    <button class="submit" id="settleBtn" type="button">この月を精算済みにする</button>
-  </div>
-  <div class="settled-banner" id="settledBanner" hidden>この月は精算済みです</div>
+<div class="container" id="hub" hidden>
+  <div class="who-am-i" id="whoAmI"></div>
+  <a class="hub-btn" href="kakeibo.html">家計簿</a>
+  <a class="hub-btn" href="graph.html">家計簿グラフ</a>
+  <a class="hub-btn" href="shopping.html">買い物リスト</a>
+  <a class="hub-btn" href="todo.html">やることリスト</a>
+  <button class="hub-btn hub-logout" id="logoutBtn" type="button">ログアウト</button>
 </div>
 
 <div class="overlay" id="loginOverlay" hidden>
@@ -444,89 +138,6 @@
   </div>
 </div>
 
-<div class="overlay" id="entryOverlay" hidden>
-  <div class="modal-card" style="text-align: left; position: relative;">
-    <button class="modal-close" id="entryCloseBtn" type="button" aria-label="閉じる">×</button>
-    <h2 style="text-align: center;">新規登録</h2>
-    <form id="entryForm">
-      <div class="row">
-        <input type="date" id="fDate" required>
-        <input type="number" id="fAmount" placeholder="金額" inputmode="numeric" required>
-      </div>
-      <div class="row">
-        <input type="text" id="fDesc" placeholder="内容 (例: イオン)" required>
-      </div>
-      <div class="row">
-        <div class="toggle-group" id="entryPayerGroup">
-          <div class="toggle-btn aoi" data-value="碧">碧</div>
-          <div class="toggle-btn" data-value="竜">竜</div>
-        </div>
-      </div>
-      <div class="row split-row">
-        <span class="split-side" data-side="half">割り勘</span>
-        <label class="switch">
-          <input type="checkbox" id="splitToggle">
-          <span class="switch-slider"></span>
-        </label>
-        <span class="split-side" data-side="full">全額請求</span>
-      </div>
-      <div class="row">
-        <button type="submit" class="submit" id="submitBtn" style="margin-top: 0;">追加</button>
-        <button class="btn-small" id="sendBtn" type="button">送信する</button>
-      </div>
-    </form>
-
-    <div class="pending-section" id="pendingSection" hidden>
-      <div class="pending-header">未送信 (<span id="pendingCount">0</span>件)</div>
-      <ul class="list" id="pendingList"></ul>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="editOverlay" hidden>
-  <div class="modal-card" style="text-align: left; position: relative;">
-    <button class="modal-close" id="editCloseBtn" type="button" aria-label="閉じる">×</button>
-    <h2 style="text-align: center;">記録を編集</h2>
-    <form id="editForm">
-      <div class="row">
-        <input type="date" id="eDate" required>
-        <input type="number" id="eAmount" placeholder="金額" inputmode="numeric" required>
-      </div>
-      <div class="row">
-        <input type="text" id="eDesc" placeholder="内容" required>
-      </div>
-      <div class="row">
-        <div class="toggle-group" id="editPayerGroup">
-          <div class="toggle-btn aoi" data-value="碧">碧</div>
-          <div class="toggle-btn" data-value="竜">竜</div>
-        </div>
-      </div>
-      <div class="row split-row">
-        <span class="split-side" data-side="half">割り勘</span>
-        <label class="switch">
-          <input type="checkbox" id="editSplitToggle">
-          <span class="switch-slider"></span>
-        </label>
-        <span class="split-side" data-side="full">全額請求</span>
-      </div>
-      <div class="row">
-        <button type="submit" class="submit" id="editSaveBtn" style="margin-top: 0;">更新する</button>
-        <button class="btn-small" id="editDeleteBtn" type="button" style="background: #c0392b;">削除する</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="overlay" id="confirmOverlay" hidden>
-  <div class="modal-card">
-    <p id="confirmMsg" style="color: var(--text); margin-bottom: 20px;">この記録を削除しますか？</p>
-    <div class="row">
-      <button class="toggle-btn" id="confirmCancel">キャンセル</button>
-      <button class="toggle-btn active" id="confirmOk">削除する</button>
-    </div>
-  </div>
-</div>
-
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
 </div>
@@ -534,43 +145,16 @@
 <div class="toast" id="toast" hidden></div>
 
 <script>
-  // ここに GAS のデプロイURLを貼り付けてください
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
   const LOGIN_ID_KEY = 'kakeibo_login_id';
-  const PENDING_KEY = 'kakeibo_pending';
-
   const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
 
-  const state = { loginId: 'aoi', splitType: 'half' };
-  let allItems = [];
-  let pending = loadPending_();
-  let currentMonth = todayMonth_();
+  const state = { loginId: 'aoi' };
 
-  const appEl = document.getElementById('app');
-  const balanceCard = document.getElementById('balanceCard');
-  const list = document.getElementById('list');
-  const openEntryBtn = document.getElementById('openEntryBtn');
-
-  const entryOverlay = document.getElementById('entryOverlay');
-  const entryForm = document.getElementById('entryForm');
-  const entryCloseBtn = document.getElementById('entryCloseBtn');
-  const fDate = document.getElementById('fDate');
-  const fAmount = document.getElementById('fAmount');
-  const fDesc = document.getElementById('fDesc');
-
-  const monthLabel = document.getElementById('monthLabel');
-  const monthSwipe = document.getElementById('monthSwipe');
-  const prevMonthBtn = document.getElementById('prevMonth');
-  const nextMonthBtn = document.getElementById('nextMonth');
-  const settleBar = document.getElementById('settleBar');
-  const settleBtn = document.getElementById('settleBtn');
-  const settledBanner = document.getElementById('settledBanner');
-
-  const pendingSection = document.getElementById('pendingSection');
-  const pendingList = document.getElementById('pendingList');
-  const pendingCount = document.getElementById('pendingCount');
-  const sendBtn = document.getElementById('sendBtn');
+  const hub = document.getElementById('hub');
+  const whoAmI = document.getElementById('whoAmI');
+  const logoutBtn = document.getElementById('logoutBtn');
 
   const loginOverlay = document.getElementById('loginOverlay');
   const loginForm = document.getElementById('loginForm');
@@ -578,86 +162,23 @@
   const loginError = document.getElementById('loginError');
   const loginBtn = document.getElementById('loginBtn');
 
-  const confirmOverlay = document.getElementById('confirmOverlay');
-  const confirmMsg = document.getElementById('confirmMsg');
-  const confirmCancel = document.getElementById('confirmCancel');
-  const confirmOk = document.getElementById('confirmOk');
-
   const loadingOverlay = document.getElementById('loadingOverlay');
   const toast = document.getElementById('toast');
-
-  const menuBtn = document.getElementById('menuBtn');
-  const menuBackdrop = document.getElementById('menuBackdrop');
-  const menuDrawer = document.getElementById('menuDrawer');
-  const menuUser = document.getElementById('menuUser');
-  const logoutBtn = document.getElementById('logoutBtn');
   const reloadBtn = document.getElementById('reloadBtn');
   reloadBtn.addEventListener('click', () => location.reload());
 
-  const editOverlay = document.getElementById('editOverlay');
-  const editForm = document.getElementById('editForm');
-  const editCloseBtn = document.getElementById('editCloseBtn');
-  const eDate = document.getElementById('eDate');
-  const eAmount = document.getElementById('eAmount');
-  const eDesc = document.getElementById('eDesc');
-  const editSplitToggle = document.getElementById('editSplitToggle');
-  const editDeleteBtn = document.getElementById('editDeleteBtn');
-  let editingId = null;
-
-  fDate.value = new Date().toISOString().slice(0, 10);
-
-  function todayMonth_() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  function getPassphrase_() { return localStorage.getItem(STORAGE_KEY) || ''; }
+  function clearPassphrase_() {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LOGIN_ID_KEY);
   }
-
-  function addMonths_(ym, delta) {
-    const parts = ym.split('-').map(Number);
-    const d = new Date(parts[0], parts[1] - 1 + delta, 1);
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  }
-
-  function formatMonthLabel_(ym) {
-    const parts = ym.split('-').map(Number);
-    return parts[0] + '年' + parts[1] + '月';
-  }
-
-  function itemsForMonth_(ym) {
-    return allItems.filter(it => it.date.slice(0, 7) === ym);
-  }
-
-  function loadPending_() {
-    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { return []; }
-  }
-  function savePending_() {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-  }
-
   function showLoading_() { loadingOverlay.hidden = false; }
   function hideLoading_() { loadingOverlay.hidden = true; }
-
   function showToast_(msg) {
     toast.textContent = msg;
     toast.hidden = false;
     clearTimeout(showToast_._t);
     showToast_._t = setTimeout(() => { toast.hidden = true; }, 2500);
-  }
-
-  function askConfirm_(message) {
-    return new Promise((resolve) => {
-      confirmMsg.textContent = message;
-      confirmOverlay.hidden = false;
-      const cleanup = (result) => {
-        confirmOverlay.hidden = true;
-        confirmCancel.removeEventListener('click', onCancel);
-        confirmOk.removeEventListener('click', onOk);
-        resolve(result);
-      };
-      const onCancel = () => cleanup(false);
-      const onOk = () => cleanup(true);
-      confirmCancel.addEventListener('click', onCancel);
-      confirmOk.addEventListener('click', onOk);
-    });
   }
 
   // --- ログインID (aoi/ryu) の切り替え ---
@@ -675,243 +196,32 @@
     });
   }
 
-  // --- 割り勘 / 全額請求 の切り替え ---
-  const splitToggle = document.getElementById('splitToggle');
-  splitToggle.addEventListener('change', () => {
-    state.splitType = splitToggle.checked ? 'full' : 'half';
-    renderSplitToggle_();
-  });
-  function renderSplitToggle_() {
-    splitToggle.checked = state.splitType === 'full';
-    document.querySelectorAll('#entryOverlay .split-side').forEach(el => {
-      el.classList.toggle('active', el.dataset.side === state.splitType);
-    });
-  }
-  renderSplitToggle_();
-
-  // --- 新規登録ダイアログ内の支払者選択 ---
-  document.getElementById('entryPayerGroup').addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    state.entryPayer = btn.dataset.value;
-    renderEntryPayerToggle_();
-  });
-  function renderEntryPayerToggle_() {
-    document.querySelectorAll('#entryPayerGroup .toggle-btn').forEach(b => {
-      const active = b.dataset.value === state.entryPayer;
-      b.classList.toggle('active', active);
-      b.classList.toggle('aoi', active && b.dataset.value === '碧');
-    });
+  function showHub_(loginId) {
+    whoAmI.textContent = 'ログイン中: ' + (LOGIN_ID_TO_PAYER[loginId] || loginId);
+    loginOverlay.hidden = true;
+    hub.hidden = false;
   }
 
-  function currentPayer_() {
-    return LOGIN_ID_TO_PAYER[state.loginId] || '碧';
-  }
-
-  function yen_(n) {
-    return '¥' + Number(n).toLocaleString();
-  }
-
-  function renderBalance_(balance) {
-    if (balance === 0) {
-      balanceCard.innerHTML = '<div class="label">貸し借りなし</div><div class="amount">精算済み</div>';
-      return;
-    }
-    const from = balance > 0 ? '竜' : '碧';
-    const to = balance > 0 ? '碧' : '竜';
-    balanceCard.innerHTML =
-      '<div class="label">' + from + ' → ' + to + '</div>' +
-      '<div class="amount">' + yen_(Math.abs(balance)) + '</div>';
-  }
-
-  function calcMonthBalance_(items) {
-    let balance = 0;
-    items.forEach(it => {
-      if (it.settled) return;
-      const sign = it.payer === '碧' ? 1 : -1;
-      const portion = it.fullCharge ? it.amount : it.amount / 2;
-      balance += sign * portion;
-    });
-    return Math.round(balance);
-  }
-
-  function renderList_(items) {
-    if (!items.length) {
-      list.innerHTML = '<li class="empty">この月の記録はありません</li>';
-      return;
-    }
-    list.innerHTML = items.map(it => {
-      const tagClass = it.payer === '碧' ? 'aoi' : 'ryu';
-      const badges = (it.settled ? '<span class="tag-badge">済</span>' : '') +
-        (it.fullCharge ? '<span class="tag-badge full">全額</span>' : '');
-      return (
-        '<li class="item' + (it.settled ? ' is-settled' : '') + '" data-id="' + it.id + '">' +
-        '<span class="tag ' + tagClass + '"></span>' +
-        '<div class="main">' +
-          '<div class="desc">' + escapeHtml_(it.desc) + badges + '</div>' +
-          '<div class="meta">' + it.date + ' ・ ' + it.payer + 'が支払い</div>' +
-        '</div>' +
-        '<div class="amount">' + yen_(it.amount) + '</div>' +
-        '</li>'
-      );
-    }).join('');
-  }
-
-  function renderPending_() {
-    pendingSection.hidden = pending.length === 0;
-    pendingCount.textContent = pending.length;
-    pendingList.innerHTML = pending.map(p => {
-      const tagClass = p.payer === '碧' ? 'aoi' : 'ryu';
-      const badge = p.fullCharge ? '<span class="tag-badge full">全額</span>' : '';
-      return (
-        '<li class="item pending-item" data-local-id="' + p.localId + '">' +
-        '<span class="tag ' + tagClass + '"></span>' +
-        '<div class="main">' +
-          '<div class="desc">' + escapeHtml_(p.desc) + badge + '</div>' +
-          '<div class="meta">' + p.date + ' ・ ' + p.payer + 'が支払い（未送信）</div>' +
-        '</div>' +
-        '<div class="amount">' + yen_(p.amount) + '</div>' +
-        '<button class="del pending-remove" data-local-id="' + p.localId + '">✕</button>' +
-        '</li>'
-      );
-    }).join('');
-    openEntryBtn.textContent = pending.length
-      ? '＋ 記録を追加 (' + pending.length + '件未送信)'
-      : '＋ 記録を追加';
-  }
-
-  function renderMonth_() {
-    monthLabel.textContent = formatMonthLabel_(currentMonth);
-    const items = itemsForMonth_(currentMonth);
-    renderBalance_(calcMonthBalance_(items));
-    renderList_(items);
-    if (!items.length) {
-      settleBar.hidden = true;
-      settledBanner.hidden = true;
-    } else {
-      const allSettled = items.every(it => it.settled);
-      settleBar.hidden = allSettled;
-      settledBanner.hidden = !allSettled;
-    }
-  }
-
-  prevMonthBtn.addEventListener('click', () => {
-    currentMonth = addMonths_(currentMonth, -1);
-    renderMonth_();
-  });
-  nextMonthBtn.addEventListener('click', () => {
-    currentMonth = addMonths_(currentMonth, 1);
-    renderMonth_();
-  });
-
-  let touchStartX = null;
-  let touchStartY = null;
-  monthSwipe.addEventListener('touchstart', (e) => {
-    const t = e.touches[0];
-    touchStartX = t.clientX;
-    touchStartY = t.clientY;
-  }, { passive: true });
-  monthSwipe.addEventListener('touchend', (e) => {
-    if (touchStartX === null) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
-    touchStartX = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      currentMonth = addMonths_(currentMonth, dx < 0 ? 1 : -1);
-      renderMonth_();
-    }
-  });
-
-  openEntryBtn.addEventListener('click', () => {
-    state.entryPayer = currentPayer_();
-    renderEntryPayerToggle_();
-    entryOverlay.hidden = false;
-    fAmount.focus();
-  });
-  entryCloseBtn.addEventListener('click', () => {
-    entryOverlay.hidden = true;
-  });
-
-  settleBtn.addEventListener('click', async () => {
-    const ok = await askConfirm_(formatMonthLabel_(currentMonth) + '分をすべて精算済みにしますか？');
-    if (!ok) return;
-    showLoading_();
-    try {
-      const data = await postAction_({ action: 'settleMonth', yearMonth: currentMonth });
-      if (data) {
-        allItems = data.items;
-        renderMonth_();
-        showToast_('精算済みにしました');
-      }
-    } finally {
-      hideLoading_();
-    }
-  });
-
-  function escapeHtml_(s) {
-    return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
-
-  function getPassphrase_() {
-    return localStorage.getItem(STORAGE_KEY) || '';
-  }
-  function clearPassphrase_() {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LOGIN_ID_KEY);
-  }
-
-  async function fetchData_(passphrase) {
-    const url = GAS_URL + '?passphrase=' + encodeURIComponent(passphrase);
+  // ログイン確認は合言葉のチェックだけの軽量な通信(list=ping)。
+  // 家計簿・買い物リストなどのデータは各ページ側で必要な時に取得する。
+  async function verifyPassphrase_(passphrase) {
+    const url = GAS_URL + '?passphrase=' + encodeURIComponent(passphrase) + '&list=ping';
     const res = await fetch(url);
     return res.json();
   }
-
-  function renderMenuUser_() {
-    menuUser.textContent = 'ログイン中: ' + currentPayer_();
-    menuBtn.hidden = false;
-  }
-
-  function openMenu_() {
-    menuDrawer.classList.add('open');
-    menuBackdrop.hidden = false;
-  }
-  function closeMenu_() {
-    menuDrawer.classList.remove('open');
-    menuBackdrop.hidden = true;
-  }
-  menuBtn.addEventListener('click', openMenu_);
-  menuBackdrop.addEventListener('click', closeMenu_);
-  logoutBtn.addEventListener('click', () => {
-    closeMenu_();
-    clearPassphrase_();
-    appEl.hidden = true;
-    menuBtn.hidden = true;
-    loginOverlay.hidden = false;
-    loginInput.value = '';
-    loginInput.focus();
-  });
 
   async function tryEnter_(loginId, passphrase, showError) {
     loginBtn.disabled = true;
     loginBtn.textContent = '確認中...';
     try {
-      const data = await fetchData_(passphrase);
+      const data = await verifyPassphrase_(passphrase);
       if (data.error) {
         if (showError) loginError.textContent = data.error;
         return false;
       }
-      state.loginId = loginId;
       localStorage.setItem(STORAGE_KEY, passphrase);
       localStorage.setItem(LOGIN_ID_KEY, loginId);
-      loginOverlay.hidden = true;
-      appEl.hidden = false;
-      renderMenuUser_();
-      allItems = data.items;
-      renderMonth_();
-      renderPending_();
+      showHub_(loginId);
       return true;
     } catch (err) {
       if (showError) showToast_('通信エラーが発生しました');
@@ -929,186 +239,15 @@
     if (!ok) loginInput.value = '';
   });
 
-  async function postAction_(payload) {
-    let res;
-    try {
-      res = await fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify(Object.assign({ passphrase: getPassphrase_() }, payload)),
-      });
-    } catch (err) {
-      showToast_('通信エラーが発生しました。もう一度お試しください');
-      return null;
-    }
-    let data;
-    try {
-      data = await res.json();
-    } catch (err) {
-      showToast_('通信エラーが発生しました。もう一度お試しください');
-      return null;
-    }
-    if (data.error === '合言葉が違います') {
-      clearPassphrase_();
-      appEl.hidden = true;
-      menuBtn.hidden = true;
-      loginOverlay.hidden = false;
-      loginError.textContent = '合言葉が違うようです。もう一度入力してください。';
-      return null;
-    }
-    if (data.error) {
-      showToast_('エラー: ' + data.error);
-      return null;
-    }
-    return data;
-  }
-
-  // 「追加」はローカルの未送信リストに積むだけ。通信は「送信する」でまとめて行う。
-  entryForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    pending.push({
-      localId: 'p' + Date.now() + Math.random().toString(36).slice(2, 7),
-      date: fDate.value,
-      desc: fDesc.value,
-      amount: Number(fAmount.value),
-      payer: state.entryPayer || currentPayer_(),
-      fullCharge: state.splitType === 'full',
-    });
-    savePending_();
-    renderPending_();
-    fAmount.value = '';
-    fDesc.value = '';
-    state.splitType = 'half';
-    renderSplitToggle_();
-    fAmount.focus();
+  logoutBtn.addEventListener('click', () => {
+    clearPassphrase_();
+    hub.hidden = true;
+    loginOverlay.hidden = false;
+    loginInput.value = '';
+    loginInput.focus();
   });
 
-  pendingList.addEventListener('click', (e) => {
-    const btn = e.target.closest('.pending-remove');
-    if (!btn) return;
-    pending = pending.filter(p => p.localId !== btn.dataset.localId);
-    savePending_();
-    renderPending_();
-  });
-
-  sendBtn.addEventListener('click', async () => {
-    if (!pending.length) return;
-    showLoading_();
-    try {
-      const data = await postAction_({
-        action: 'add',
-        items: pending.map(p => ({ date: p.date, desc: p.desc, amount: p.amount, payer: p.payer, fullCharge: p.fullCharge })),
-      });
-      if (data) {
-        currentMonth = pending[pending.length - 1].date.slice(0, 7);
-        pending = [];
-        savePending_();
-        renderPending_();
-        allItems = data.items;
-        renderMonth_();
-        entryOverlay.hidden = true;
-        showToast_('送信しました');
-      }
-    } finally {
-      hideLoading_();
-    }
-  });
-
-  list.addEventListener('click', (e) => {
-    const li = e.target.closest('li.item');
-    if (!li || !li.dataset.id) return;
-    const item = allItems.find(it => it.id === li.dataset.id);
-    if (!item) return;
-    openEditDialog_(item);
-  });
-
-  function openEditDialog_(item) {
-    editingId = item.id;
-    eDate.value = item.date;
-    eAmount.value = item.amount;
-    eDesc.value = item.desc;
-    state.editPayer = item.payer;
-    state.editSplitType = item.fullCharge ? 'full' : 'half';
-    renderEditPayerToggle_();
-    renderEditSplitToggle_();
-    editOverlay.hidden = false;
-  }
-
-  editCloseBtn.addEventListener('click', () => {
-    editOverlay.hidden = true;
-    editingId = null;
-  });
-
-  document.getElementById('editPayerGroup').addEventListener('click', (e) => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    state.editPayer = btn.dataset.value;
-    renderEditPayerToggle_();
-  });
-  function renderEditPayerToggle_() {
-    document.querySelectorAll('#editPayerGroup .toggle-btn').forEach(b => {
-      const active = b.dataset.value === state.editPayer;
-      b.classList.toggle('active', active);
-      b.classList.toggle('aoi', active && b.dataset.value === '碧');
-    });
-  }
-
-  editSplitToggle.addEventListener('change', () => {
-    state.editSplitType = editSplitToggle.checked ? 'full' : 'half';
-    renderEditSplitToggle_();
-  });
-  function renderEditSplitToggle_() {
-    editSplitToggle.checked = state.editSplitType === 'full';
-    document.querySelectorAll('#editOverlay .split-side').forEach(el => {
-      el.classList.toggle('active', el.dataset.side === state.editSplitType);
-    });
-  }
-
-  editForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!editingId) return;
-    showLoading_();
-    try {
-      const data = await postAction_({
-        action: 'update',
-        id: editingId,
-        date: eDate.value,
-        desc: eDesc.value,
-        amount: Number(eAmount.value),
-        payer: state.editPayer,
-        fullCharge: state.editSplitType === 'full',
-      });
-      if (data) {
-        allItems = data.items;
-        renderMonth_();
-        editOverlay.hidden = true;
-        editingId = null;
-        showToast_('更新しました');
-      }
-    } finally {
-      hideLoading_();
-    }
-  });
-
-  editDeleteBtn.addEventListener('click', async () => {
-    if (!editingId) return;
-    const ok = await askConfirm_('この記録を削除しますか？');
-    if (!ok) return;
-    showLoading_();
-    try {
-      const data = await postAction_({ action: 'delete', id: editingId });
-      if (data) {
-        allItems = data.items;
-        renderMonth_();
-        editOverlay.hidden = true;
-        editingId = null;
-        showToast_('削除しました');
-      }
-    } finally {
-      hideLoading_();
-    }
-  });
-
-  // 初回ロード: 保存済みのログインID・合言葉があれば自動で入室を試みる
+  // 初回ロード: 保存済みのログインID・合言葉があれば自動でホームを表示
   (async function init_() {
     const savedId = localStorage.getItem(LOGIN_ID_KEY);
     const savedPass = getPassphrase_();

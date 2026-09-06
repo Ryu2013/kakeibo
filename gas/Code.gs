@@ -18,6 +18,9 @@ function doGet(e) {
   if (e.parameter.passphrase !== PASSPHRASE) {
     return jsonResponse_({ error: '合言葉が違います' });
   }
+  if (e.parameter.list === 'ping') {
+    return jsonResponse_({ ok: true });
+  }
   if (e.parameter.list === 'shopping') {
     return jsonResponse_({ items: readShoppingItems_() });
   }
