@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>買い物リスト</title>
+<title>やることリスト</title>
 <link rel="icon" href="icon-192.png" type="image/png">
 <meta name="theme-color" content="#f5f3ef">
 <style>
@@ -79,7 +79,7 @@
     background: var(--card); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
     display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
-  li.item.purchased { opacity: 0.5; }
+  li.item.done { opacity: 0.5; }
   li.item.draft-item {
     background: #fffaf5; border: 1px dashed var(--border); box-shadow: none;
   }
@@ -87,7 +87,7 @@
     width: 24px; height: 24px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent);
   }
   li.item .desc { flex: 1; cursor: pointer; word-break: break-all; }
-  li.item.purchased .desc { text-decoration: line-through; }
+  li.item.done .desc { text-decoration: line-through; }
   li.item .draft-remove {
     border: none; background: none; color: var(--muted); font-size: 1.1rem;
     cursor: pointer; padding: 4px;
@@ -148,33 +148,33 @@
   <div class="menu-user" id="menuUser">-</div>
   <a class="menu-item" href="index.html">家計簿</a>
   <a class="menu-item" href="graph.html">家計簿グラフ</a>
-  <a class="menu-item" href="todo.html">やることリスト</a>
+  <a class="menu-item" href="shopping.html">買い物リスト</a>
   <button class="menu-item" id="logoutBtn" type="button">ログアウト</button>
 </nav>
 
 <header>
-  <h1>買い物リスト</h1>
+  <h1>やることリスト</h1>
 </header>
 
 <div class="container" id="app" hidden>
-  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ 買うものを追加</button>
+  <button class="open-entry-btn" id="openEntryBtn" type="button">＋ やることを追加</button>
 
-  <div class="section-title">未購入</div>
-  <ul class="list" id="notPurchasedList">
+  <div class="section-title">未完了</div>
+  <ul class="list" id="notDoneList">
     <li class="empty">読み込み中...</li>
   </ul>
 
-  <div class="section-title" id="purchasedTitle" hidden>購入済み（7日で自動的に消えます）</div>
-  <ul class="list" id="purchasedList"></ul>
+  <div class="section-title" id="doneTitle" hidden>完了済み（7日で自動的に消えます）</div>
+  <ul class="list" id="doneList"></ul>
 </div>
 
 <div class="overlay" id="entryOverlay" hidden>
   <div class="modal-card">
     <button class="modal-close" id="entryCloseBtn" type="button" aria-label="閉じる">×</button>
-    <h2>買うものを追加</h2>
+    <h2>やることを追加</h2>
     <form id="entryForm">
       <div class="row">
-        <input type="text" id="fDesc" placeholder="買うもの" autocomplete="off" required>
+        <input type="text" id="fDesc" placeholder="やること" autocomplete="off" required>
       </div>
       <div class="row">
         <button type="submit" class="submit" style="flex: 1;">追加</button>
@@ -213,7 +213,7 @@
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbxwMA2biwcJz5GbjjR5xyYwqSbw6cRSE5sA-aRtwQg0_bO7s1zU6H03NKZiZVfMU50-/exec';
   const STORAGE_KEY = 'kakeibo_passphrase';
   const LOGIN_ID_KEY = 'kakeibo_login_id';
-  const DRAFT_KEY = 'shopping_draft';
+  const DRAFT_KEY = 'todo_draft';
   const LOGIN_ID_TO_PAYER = { aoi: '碧', ryu: '竜' };
 
   let items = [];
@@ -222,9 +222,9 @@
 
   const appEl = document.getElementById('app');
   const openEntryBtn = document.getElementById('openEntryBtn');
-  const notPurchasedList = document.getElementById('notPurchasedList');
-  const purchasedList = document.getElementById('purchasedList');
-  const purchasedTitle = document.getElementById('purchasedTitle');
+  const notDoneList = document.getElementById('notDoneList');
+  const doneList = document.getElementById('doneList');
+  const doneTitle = document.getElementById('doneTitle');
 
   const entryOverlay = document.getElementById('entryOverlay');
   const entryForm = document.getElementById('entryForm');
@@ -289,21 +289,21 @@
   });
 
   function renderList_() {
-    const notPurchased = items.filter(it => !it.purchased);
-    const purchased = items.filter(it => it.purchased);
+    const notDone = items.filter(it => !it.done);
+    const done = items.filter(it => it.done);
 
-    notPurchasedList.innerHTML = notPurchased.length
-      ? notPurchased.map(itemRow_).join('')
-      : '<li class="empty">買うものはありません</li>';
+    notDoneList.innerHTML = notDone.length
+      ? notDone.map(itemRow_).join('')
+      : '<li class="empty">やることはありません</li>';
 
-    purchasedTitle.hidden = purchased.length === 0;
-    purchasedList.innerHTML = purchased.map(itemRow_).join('');
+    doneTitle.hidden = done.length === 0;
+    doneList.innerHTML = done.map(itemRow_).join('');
   }
 
   function itemRow_(it) {
     return (
-      '<li class="item' + (it.purchased ? ' purchased' : '') + '" data-id="' + it.id + '">' +
-      '<input type="checkbox" class="check" data-id="' + it.id + '"' + (it.purchased ? ' checked' : '') + '>' +
+      '<li class="item' + (it.done ? ' done' : '') + '" data-id="' + it.id + '">' +
+      '<input type="checkbox" class="check" data-id="' + it.id + '"' + (it.done ? ' checked' : '') + '>' +
       '<span class="desc" data-id="' + it.id + '">' + escapeHtml_(it.desc) + '</span>' +
       '</li>'
     );
@@ -319,8 +319,8 @@
       '</li>'
     )).join('');
     openEntryBtn.textContent = draft.length
-      ? '＋ 買うものを追加 (' + draft.length + '件未送信)'
-      : '＋ 買うものを追加';
+      ? '＋ やることを追加 (' + draft.length + '件未送信)'
+      : '＋ やることを追加';
   }
 
   // チェックのON/OFFは体感速度優先で楽観的更新(即座に見た目を変えてから通信)。
@@ -331,20 +331,20 @@
     const id = check.dataset.id;
     const item = items.find(it => it.id === id);
     if (!item) return;
-    const purchased = check.checked;
-    item.purchased = purchased;
+    const done = check.checked;
+    item.done = done;
     renderList_();
-    const data = await postAction_({ action: 'shoppingToggle', id, purchased });
+    const data = await postAction_({ action: 'todoToggle', id, done });
     if (data) {
-      items = data.shoppingItems;
+      items = data.todoItems;
     } else {
-      item.purchased = !purchased;
+      item.done = !done;
     }
     renderList_();
   });
 
   document.addEventListener('click', (e) => {
-    const desc = e.target.closest('#notPurchasedList .desc, #purchasedList .desc');
+    const desc = e.target.closest('#notDoneList .desc, #doneList .desc');
     if (!desc) return;
     const item = items.find(it => it.id === desc.dataset.id);
     if (!item) return;
@@ -363,9 +363,9 @@
     if (!editingId) return;
     showLoading_();
     try {
-      const data = await postAction_({ action: 'shoppingUpdate', id: editingId, desc: eDesc.value });
+      const data = await postAction_({ action: 'todoUpdate', id: editingId, desc: eDesc.value });
       if (data) {
-        items = data.shoppingItems;
+        items = data.todoItems;
         renderList_();
         editOverlay.hidden = true;
         editingId = null;
@@ -380,9 +380,9 @@
     if (!editingId) return;
     showLoading_();
     try {
-      const data = await postAction_({ action: 'shoppingDelete', id: editingId });
+      const data = await postAction_({ action: 'todoDelete', id: editingId });
       if (data) {
-        items = data.shoppingItems;
+        items = data.todoItems;
         renderList_();
         editOverlay.hidden = true;
         editingId = null;
@@ -426,14 +426,14 @@
     showLoading_();
     try {
       const data = await postAction_({
-        action: 'shoppingAdd',
+        action: 'todoAdd',
         items: draft.map(d => ({ desc: d.desc })),
       });
       if (data) {
         draft = [];
         saveDraft_();
         renderDraft_();
-        items = data.shoppingItems;
+        items = data.todoItems;
         renderList_();
         entryOverlay.hidden = true;
         showToast_('送信しました');
@@ -488,7 +488,7 @@
 
     let data;
     try {
-      const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase) + '&list=shopping');
+      const res = await fetch(GAS_URL + '?passphrase=' + encodeURIComponent(passphrase) + '&list=todo');
       data = await res.json();
     } catch (err) {
       hideLoading_();

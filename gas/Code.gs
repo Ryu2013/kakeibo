@@ -5,10 +5,12 @@
  *
  * 支出シート列: id, 日付, 内容, 金額, 支払者, 精算済み, 全額請求
  * 買い物シート列: id, 内容, 購入済み, 購入日時
+ * やることシート列: id, 内容, 完了, 完了日時
  */
 
 const SHEET_NAME = '支出';
 const SHOPPING_SHEET_NAME = '買い物';
+const TODO_SHEET_NAME = 'やること';
 const PASSPHRASE = 'bebichan';
 const PAYERS = ['碧', '竜'];
 
@@ -18,6 +20,9 @@ function doGet(e) {
   }
   if (e.parameter.list === 'shopping') {
     return jsonResponse_({ items: readShoppingItems_() });
+  }
+  if (e.parameter.list === 'todo') {
+    return jsonResponse_({ items: readTodoItems_() });
   }
   const items = readItems_();
   return jsonResponse_({ items: items, balance: calcBalance_(items) });
@@ -185,6 +190,70 @@ function doPost(e) {
       return jsonResponse_({ ok: true, shoppingItems: readShoppingItems_() });
     }
 
+    if (body.action === 'todoAdd') {
+      const list = Array.isArray(body.items) ? body.items : [];
+      if (!list.length) {
+        return jsonResponse_({ error: '追加するデータがありません' });
+      }
+      const rows = [];
+      for (let i = 0; i < list.length; i++) {
+        const desc = String(list[i].desc || '').trim();
+        if (!desc) {
+          return jsonResponse_({ error: (i + 1) + '件目: 内容を入力してください' });
+        }
+        rows.push([Utilities.getUuid(), desc, false, '']);
+      }
+      const sheet = getTodoSheet_();
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 4).setValues(rows);
+      return jsonResponse_({ ok: true, todoItems: readTodoItems_() });
+    }
+
+    if (body.action === 'todoUpdate') {
+      const desc = String(body.desc || '').trim();
+      if (!desc) {
+        return jsonResponse_({ error: '内容を入力してください' });
+      }
+      const sheet = getTodoSheet_();
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.getRange(i + 1, 2).setValue(desc);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        return jsonResponse_({ error: '対象が見つかりません' });
+      }
+      return jsonResponse_({ ok: true, todoItems: readTodoItems_() });
+    }
+
+    if (body.action === 'todoDelete') {
+      const sheet = getTodoSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          sheet.deleteRow(i + 1);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, todoItems: readTodoItems_() });
+    }
+
+    if (body.action === 'todoToggle') {
+      const sheet = getTodoSheet_();
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === body.id) {
+          const done = !!body.done;
+          sheet.getRange(i + 1, 3, 1, 2).setValues([[done, done ? new Date() : '']]);
+          break;
+        }
+      }
+      return jsonResponse_({ ok: true, todoItems: readTodoItems_() });
+    }
+
     if (body.action === 'settleMonth') {
       const yearMonth = String(body.yearMonth || '');
       if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
@@ -273,6 +342,31 @@ function getShoppingSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet(SHOPPING_SHEET_NAME);
     sheet.appendRow(['id', '内容', '購入済み', '購入日時']);
+  }
+  return sheet;
+}
+
+function readTodoItems_() {
+  const sheet = getTodoSheet_();
+  const rows = sheet.getDataRange().getValues();
+  rows.shift(); // ヘッダー除去
+  return rows
+    .filter(function (r) { return r[0]; })
+    .map(function (r) {
+      return {
+        id: r[0],
+        desc: r[1],
+        done: r[2] === true || r[2] === 'TRUE',
+      };
+    });
+}
+
+function getTodoSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(TODO_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(TODO_SHEET_NAME);
+    sheet.appendRow(['id', '内容', '完了', '完了日時']);
   }
   return sheet;
 }
@@ -371,6 +465,49 @@ function installDailyShoppingCleanupTrigger() {
     }
   });
   ScriptApp.newTrigger('cleanupOldShoppingItems')
+    .timeBased()
+    .everyDays(1)
+    .atHour(4)
+    .create();
+}
+
+// 完了になってから7日以上経ったやることリストの記録を削除する。
+// 未完了の記録は件数が増えても削除しない。
+const TODO_RETENTION_DAYS = 7;
+
+function cleanupOldTodoItems() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - TODO_RETENTION_DAYS);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getTodoSheet_();
+    const data = sheet.getDataRange().getValues();
+    let deleted = 0;
+    for (let i = data.length - 1; i >= 1; i--) {
+      const done = data[i][2] === true || data[i][2] === 'TRUE';
+      const doneAt = data[i][3];
+      if (done && doneAt instanceof Date && doneAt < cutoff) {
+        sheet.deleteRow(i + 1);
+        deleted++;
+      }
+    }
+    Logger.log('cleanupOldTodoItems: deleted ' + deleted + ' rows');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Apps Scriptエディタでこの関数を選んで一度だけ実行(▶)すると、
+// 毎日深夜にcleanupOldTodoItemsが自動実行されるようになる。
+function installDailyTodoCleanupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'cleanupOldTodoItems') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('cleanupOldTodoItems')
     .timeBased()
     .everyDays(1)
     .atHour(4)
