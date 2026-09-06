@@ -1,7 +1,7 @@
 {
-  "name": "家計簿",
-  "short_name": "家計簿",
-  "description": "碧・竜の割り勘家計簿",
+  "name": "べびーず",
+  "short_name": "べびーず",
+  "description": "碧・竜の家計簿・買い物リスト・やることリスト・家事管理",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
